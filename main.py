@@ -1,10 +1,14 @@
 from pathlib import Path
 import argparse
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
+import pytz
 from dateutil.relativedelta import relativedelta
 
+
 logging.basicConfig(level=logging.DEBUG)
+
+taipei = pytz.timezone("Asia/Taipei")
 
 def parse_args():
     
@@ -23,6 +27,14 @@ def parse_args():
     
     if len(args.times) != 2:
         raise ValueError("out of range")
+    
+    start_time, end_time = args.times
+    format = "%Y-%m-%dT%H:%M:%S" #2022-08-05T01:00:00
+    
+    start_time = datetime.strptime(start_time, format).astimezone(taipei)
+    end_time = datetime.strptime(end_time, format).astimezone(taipei)
+    
+    args.times = (start_time, end_time)
 
     return args
 
@@ -34,28 +46,27 @@ def get_videos(dir, suffix='.TS', interval: relativedelta = relativedelta(minute
     
 
 def main():
+
     args = parse_args()
     src_video_dir = args.src_video_dir
     dst_video_dir = args.dst_video_dir
     start_time, end_time = args.times
 
-    format = "%Y-%m-%dT%H:%M:%S" #2022-08-05T01:00:00
-    start_time = datetime.strptime(start_time, format)
-    end_time = datetime.strptime(end_time, format)
-
     video_list = []
     # video_list_idx = 0
     videos = get_videos(src_video_dir)
-    last_time = datetime.utcnow() + relativedelta(hours=8)
+    last_time = datetime.now(tz=timezone.utc)
     tmp_list = []
 
     for i, vid in enumerate(videos):
+        # 解析檔名取出時間
         vid = Path(vid)
         stem = vid.stem
         stem = stem.split("_")[0]
         format = "%Y%m%d%H%M%S"
-        d = datetime.strptime(stem, format)
+        d = datetime.strptime(stem, format).astimezone(taipei)
 
+        # 比對時間有在範圍內
         if not (start_time <= d < end_time):
             continue
 
