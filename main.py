@@ -1,9 +1,12 @@
 from pathlib import Path
 import argparse
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 import pytz
 from dateutil.relativedelta import relativedelta
+from e3vvid.video_processor import VideoProcessor
+from subprocess import Popen, PIPE
+import shlex
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -47,49 +50,26 @@ def get_videos(dir, suffix='.TS', interval: relativedelta = relativedelta(minute
 
 def main():
 
-    args = parse_args()
-    src_video_dir = args.src_video_dir
-    dst_video_dir = args.dst_video_dir
-    start_time, end_time = args.times
+    args = parse_args()   
 
-    video_list = []
-    # video_list_idx = 0
-    videos = get_videos(src_video_dir)
-    last_time = datetime.now(tz=timezone.utc)
-    tmp_list = []
-
-    for i, vid in enumerate(videos):
-        # 解析檔名取出時間
-        vid = Path(vid)
-        stem = vid.stem
-        stem = stem.split("_")[0]
-        format = "%Y%m%d%H%M%S"
-        d = datetime.strptime(stem, format).astimezone(taipei)
-
-        # 比對時間有在範圍內
-        if not (start_time <= d < end_time):
-            continue
-
-        # logging.info(f'last_time: {last_time}')
-        this_time = last_time + relativedelta(minutes=1)
-        
-        # logging.info(f'this_time: {this_time}')
-        if i!=0 and this_time != d:
-            video_list.append(tmp_list.copy())
-            tmp_list.clear()
-
-        tmp_list.append(f"file '{vid}'\n")
-        logging.info(f'tmp_list: {len(tmp_list)}')
-        last_time = d
+    vid_processor = VideoProcessor(
+        src_video_dir=args.src_video_dir,
+        dst_video_dir=args.dst_video_dir,
+        start_time = args.times[0],
+        end_time = args.times[1]
+    )
+    video_list = vid_processor.find_continous_video()
     
-    if len(tmp_list):
-        video_list.append(tmp_list.copy())
-        
     for i, v in enumerate(video_list):
-        with open(f"videolist{i}.txt", "w") as f:
-            logging.info(v)
-            f.writelines(v)           
-
+        videolist = Path(f"videolist{i}.txt") 
+        with open(videolist, "w") as f:            
+            f.writelines(v)
+        
+        command = shlex.split(f"ffmpeg -y -f concat -safe 0 -i {videolist} -c copy video{i}.mp4")        
+        logging.info(command)
+        process = Popen(command, stdout=PIPE, stderr=PIPE)
+        stdout, stderr = process.communicate()        
+        videolist.unlink()
 
 if __name__ == '__main__':
     main()
