@@ -1,13 +1,9 @@
-from pathlib import Path
 import argparse
 import logging
 from datetime import datetime
 import pytz
-from dateutil.relativedelta import relativedelta
-from e3vvid.video_processor import VideoProcessor
-from subprocess import Popen, PIPE
-import shlex
 
+from e3vvid.video_processor import VideoProcessor
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -37,20 +33,15 @@ def parse_args():
     start_time = datetime.strptime(start_time, format).astimezone(taipei)
     end_time = datetime.strptime(end_time, format).astimezone(taipei)
     
+    if start_time >= end_time:
+        raise ValueError("end_time is greater than start_time")
+    
     args.times = (start_time, end_time)
 
     return args
 
-def get_videos(dir, suffix='.TS', interval: relativedelta = relativedelta(minute=1)):
-    dir = Path(dir)
-    logging.info(dir)
-    
-    return list(sorted(dir.glob(f'**/*{suffix}')))
-    
-
-def main():
-
-    args = parse_args()   
+def main():    
+    args = parse_args()
 
     vid_processor = VideoProcessor(
         src_video_dir=args.src_video_dir,
@@ -58,18 +49,9 @@ def main():
         start_time = args.times[0],
         end_time = args.times[1]
     )
-    video_list = vid_processor.find_continous_video()
     
-    for i, v in enumerate(video_list):
-        videolist = Path(f"videolist{i}.txt") 
-        with open(videolist, "w") as f:            
-            f.writelines(v)
-        
-        command = shlex.split(f"ffmpeg -y -f concat -safe 0 -i {videolist} -c copy video{i}.mp4")        
-        logging.info(command)
-        process = Popen(command, stdout=PIPE, stderr=PIPE)
-        stdout, stderr = process.communicate()        
-        videolist.unlink()
+    vid_processor.concat()
+
 
 if __name__ == '__main__':
     main()
