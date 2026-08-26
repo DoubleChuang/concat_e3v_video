@@ -6,8 +6,7 @@ from pathlib import Path
 from datetime import datetime, tzinfo
 from threading import Event
 import pytz
-import shlex
-import subprocess
+import sys
 from subprocess import Popen, PIPE
 
 
@@ -184,9 +183,14 @@ class VideoProcessor:
                 f"uploading {video_path} to youtube"
             )
 
-            cmd = shlex.split(
-                f'python3 upload_mp4_to_youtube.py {video_path.as_posix()} '
-            )
+            cmd = [
+                sys.executable,
+                str(
+                    Path(__file__).resolve().parent.parent
+                    / "upload_mp4_to_youtube.py"
+                ),
+                video_path.as_posix(),
+            ]
 
             proc = Popen(
                 cmd,
