@@ -73,16 +73,19 @@ build/
 1. **合併**：`VideoProcessor` 新增 `merge_all: bool` 參數
    - `merge_all=True`：範圍內所有檔案（依檔名時間排序）全部列入單一 concat 清單，輸出一個 mp4
    - `merge_all=False`：現有 `find_continous_video` 行為（1 分鐘 interval 分組），每組一個 mp4
-2. **靜音**：每個輸出檔若 N > 0，追加第二遍 ffmpeg（只重編音軌、畫面 `-c:v copy`）：
+2. **靜音（單一 pass，整合進 concat 指令）**：不做第二遍 ffmpeg、不產生 intermediate 檔
+   - N = 0：維持現行 `-c copy`（純 stream copy，不重編）
+   - N > 0：concat 指令直接加音訊濾鏡，影片仍 `-c:v copy` 只重編音軌：
 
-   ```
-   ffmpeg -y -i out.mp4 -c:v copy -af "volume=0.0:enable='lt(t,N)'" -c:a aac out_muted.mp4
-   ```
+     ```
+     ffmpeg -y -f concat -safe 0 -i videolist.txt -c:v copy -af "volume=0.0:enable='lt(t,N)'" -c:a aac out.mp4
+     ```
 
-   - N = 0：跳過此步驟
-   - N ≥ 影片長度：`enable` 恆真 → 全靜音（同一表達式即可涵蓋，不需特判）
-   - 輸出檔名：`<原檔名>_muted.mp4`（沿用現有 hokaido 命名慣例），原始未靜音檔保留不刪
-3. **上傳**：上傳前在 worker 內再次執行 YouTube 檢查；**上傳對象為最終輸出檔**（有靜音則上傳 `_muted` 檔，否則上傳原輸出檔），收集結果（成功/失敗、video_id）
+     - `enable='lt(t,N)'` 的 `t` 是合併後輸出時間軸，即最終影片前 N 秒靜音
+     - N ≥ 影片長度：`enable` 恆真 → 全靜音（同一表達式即可涵蓋，不需特判）
+   - 輸出檔名：N > 0 時直接輸出 `<時間戳>_muted.mp4`（沿用現有 hokaido 命名慣例）；N = 0 維持原檔名
+   - 已知限制：若來源 TS 完全無音軌，`-af` 會失敗（行車記錄器 TS 皆含音軌，可接受）
+3. **上傳**：上傳前在 worker 內再次執行 YouTube 檢查；**上傳對象為最終輸出檔**（N > 0 則為 `_muted` 檔），收集結果（成功/失敗、video_id）
 
 ## 上傳模組重構
 
@@ -110,9 +113,10 @@ PyInstaller 打包後無 python3 可叫，需改為 **in-process 可呼叫 API**
 
 - pytest：
   - `find_continous_video` 的 `merge_all` 邏輯（以偽檔名驗證分組/合併行為）
-  - 靜音 ffmpeg 指令產生正確與否（含 N=0、N≥長度邊界）
+  - 靜音指令產生（N=0 純 `-c copy`；N>0 加 `-af` + `-c:a aac`；N≥長度邊界）
   - 上傳結果解析邏輯（沿用既有行為，重構後回歸測試）
-- 手動驗證：GUI 啟動、目錄選擇、時間選擇、靜音輸出、授權流程
+- 手動驗證：GUI 啟動、目錄選擇、時間選擇、靜音輸出（前 N 秒 volumedetect 確認無聲）、授權流程
+- 已實測確認：`-af "volume=0.0:enable='lt(t,N)'" -c:v copy -c:a aac` 單一 pass 可正確產生前 N 秒靜音
 
 ## 非目標（YAGNI）
 
