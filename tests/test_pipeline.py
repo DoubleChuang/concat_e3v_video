@@ -141,3 +141,49 @@ def test_pipeline_logs_progress(monkeypatch, tmp_path):
     cfg = make_cfg(tmp_path, log=logs.append)
     run_pipeline(cfg)
     assert any("合併後影片" in line for line in logs)
+
+
+def test_pipeline_aborts_when_cancelled_during_concat(monkeypatch, tmp_path):
+    cancel = threading.Event()
+    cancel.set()
+
+    class FakeProcessor:
+        def __init__(self, *a, **kw):
+            pass
+
+        def concat(self, cancel_event=None):
+            return []
+
+    monkeypatch.setattr("app.pipeline.VideoProcessor", FakeProcessor)
+    cfg = make_cfg(tmp_path, cancel_event=cancel)
+    result = run_pipeline(cfg)
+    assert result["status"] == "aborted"
+    assert result["reason"] == "cancelled"
+
+
+def test_pipeline_aborts_when_cancelled_during_upload(monkeypatch, tmp_path):
+    cancel = threading.Event()
+
+    class FakeProcessor:
+        def __init__(self, *a, **kw):
+            pass
+
+        def concat(self, cancel_event=None):
+            return ["out.mp4"]
+
+    monkeypatch.setattr("app.pipeline.VideoProcessor", FakeProcessor)
+
+    def fake_upload(video_path, **kw):
+        cancel.set()
+        return {"exit_code": 0}
+
+    monkeypatch.setattr("app.pipeline.upload_video", fake_upload)
+    cfg = make_cfg(
+        tmp_path,
+        upload_enabled=True,
+        auth_callback=lambda: True,
+        cancel_event=cancel,
+    )
+    result = run_pipeline(cfg)
+    assert result["status"] == "aborted"
+    assert result["reason"] == "cancelled"

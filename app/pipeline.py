@@ -61,6 +61,13 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
     )
 
     video_names = processor.concat(cancel_event=cfg.cancel_event)
+    if cfg.cancel_event is not None and cfg.cancel_event.is_set():
+        return {
+            "status": "aborted",
+            "reason": "cancelled",
+            "video_names": video_names,
+            "upload_results": [],
+        }
     if not video_names:
         return {
             "status": "failed",
@@ -79,8 +86,10 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
                 "video_names": video_names,
                 "upload_results": [],
             }
+        cancelled = False
         for name in video_names:
             if cfg.cancel_event is not None and cfg.cancel_event.is_set():
+                cancelled = True
                 break
             path = Path(cfg.dst_dir) / name
             cfg.log(f"上傳 {path} 到 YouTube...")
@@ -99,6 +108,16 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
                 cfg.log(f"上傳成功: {result.get('video_id')}")
             else:
                 cfg.log(f"上傳失敗: {result.get('error')}")
+            if cfg.cancel_event is not None and cfg.cancel_event.is_set():
+                cancelled = True
+                break
+        if cancelled:
+            return {
+                "status": "aborted",
+                "reason": "cancelled",
+                "video_names": video_names,
+                "upload_results": upload_results,
+            }
 
     return {
         "status": "done",
