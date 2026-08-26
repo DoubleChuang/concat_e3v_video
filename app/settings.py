@@ -2,8 +2,8 @@ from PySide6.QtCore import QSettings
 
 
 class AppSettings(QSettings):
-    def __init__(self):
-        super().__init__("concat-e3v", "concat-e3v-gui")
+    def __init__(self, format: QSettings.Format = QSettings.NativeFormat):
+        super().__init__(format, QSettings.UserScope, "concat-e3v", "concat-e3v-gui")
 
     def set_value(self, key: str, value):
         self.setValue(key, value)
