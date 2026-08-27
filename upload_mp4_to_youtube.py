@@ -24,14 +24,21 @@ YOUTUBE_UPLOAD_SRC = REPO_ROOT / "youtube-upload"
 DEFAULT_LOG_FILE = REPO_ROOT / "upload_mp4_to_youtube.log"
 
 
+def _vendored_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent)) / "youtube-upload"
+    return YOUTUBE_UPLOAD_SRC
+
+
 def _ensure_vendored_youtube_upload(
     parser: argparse.ArgumentParser,
 ) -> None:
-    if YOUTUBE_UPLOAD_SRC.exists():
-        sys.path.insert(0, YOUTUBE_UPLOAD_SRC.as_posix())
+    src = _vendored_root()
+    if src.exists():
+        sys.path.insert(0, src.as_posix())
     else:
         parser.error(
-            f"Missing vendored folder: {YOUTUBE_UPLOAD_SRC}"
+            f"Missing vendored folder: {src}"
         )
 
 
