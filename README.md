@@ -67,9 +67,9 @@ python3 upload_mp4_to_youtube.py Front/XXX.mp4
 
 會出現如下面的資訊
 ```
-Using client secrets: /Users/double/Code/concat-e3v-video/client_secret_YOUR_CLIENT_ID-q9l827lqeqke6rlagt66ooev250ecj4d.apps.googleusercontent.com.json
+Using client secrets: /path/to/client_secret_*.json
 Using credentials file: /Users/double/.youtube-upload-credentials.json
-Check this link in your browser: https://accounts.google.com/o/oauth2/auth?client_id=YOUR_CLIENT_ID-rnrrams3jij98gqu1f9k9gs2lbqk5ndh.apps.googleusercontent.com&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube.upload+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube&access_type=offline&response_type=code
+Check this link in your browser: https://accounts.google.com/o/oauth2/auth?client_id=YOUR_CLIENT_ID.apps.googleusercontent.com&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube.upload+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube&access_type=offline&response_type=code
 Enter verification code: YOUR_VERIFICATION_CODE
 ```
 

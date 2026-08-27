@@ -50,7 +50,7 @@ class PipelineWorker(QThread):
                     get_code_callback=self._get_code_callback,
                 )
                 return True
-            except Exception as exc:
+            except BaseException as exc:
                 self.auth_required.emit(str(exc))
                 self._retry_event.wait()
                 self._retry_event.clear()
@@ -62,7 +62,7 @@ class PipelineWorker(QThread):
         cfg.log = self.log.emit
         try:
             result = run_pipeline(cfg)
-        except Exception as exc:
+        except BaseException as exc:
             result = {
                 "status": "failed",
                 "reason": str(exc),
