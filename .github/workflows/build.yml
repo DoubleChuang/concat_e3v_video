@@ -1,0 +1,139 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    name: linux-x86_64 (docker)
+    runs-on: ubuntu-latest
+    container: python:3.11-slim
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install curl and tar
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends curl xz-utils
+
+      - name: Install Python deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Build (bundles static ffmpeg)
+        run: ./build/build_linux.sh
+        env:
+          PYTHON: python
+
+      - name: Rename artifact
+        run: mv dist/concat-e3v dist/concat-e3v-linux-x86_64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: concat-e3v-linux-x86_64
+          path: dist/concat-e3v-linux-x86_64
+
+  build-macos-x86_64:
+    name: macos-x86_64
+    runs-on: macos-13
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Build (bundles static ffmpeg)
+        run: ./build/build_mac.sh
+
+      - name: Rename artifact
+        run: mv dist/concat-e3v dist/concat-e3v-macos-x86_64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: concat-e3v-macos-x86_64
+          path: dist/concat-e3v-macos-x86_64
+
+  build-macos-arm64:
+    name: macos-arm64
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Build (bundles static ffmpeg)
+        run: ./build/build_mac.sh
+
+      - name: Rename artifact
+        run: mv dist/concat-e3v dist/concat-e3v-macos-arm64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: concat-e3v-macos-arm64
+          path: dist/concat-e3v-macos-arm64
+
+  build-windows:
+    name: windows-x86_64
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Build (bundles static ffmpeg)
+        run: build\build_windows.bat
+        shell: cmd
+
+      - name: Rename artifact
+        run: move dist\concat-e3v.exe dist\concat-e3v-windows.exe
+        shell: cmd
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: concat-e3v-windows
+          path: dist/concat-e3v-windows.exe
+
+  release:
+    name: Release
+    needs: [build-linux, build-macos-x86_64, build-macos-arm64, build-windows]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
