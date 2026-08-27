@@ -3,7 +3,8 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtCore import QSettings
+from datetime import timedelta
+from PySide6.QtCore import QSettings, QDateTime
 from PySide6.QtWidgets import QApplication, QCheckBox, QSpinBox, QDateTimeEdit
 from app.settings import AppSettings
 from app.ui.main_window import MainWindow
@@ -55,3 +56,14 @@ def test_validation_rejects_bad_time(qapp, monkeypatch, tmp_path):
     window.dst_edit.setText(str(tmp_path / "out"))
     window.start_edit.setDateTime(window.end_edit.dateTime())
     assert window._validate() != []
+
+
+def test_build_cfg_attaches_taipei_tz_without_shifting(qapp, monkeypatch, tmp_path):
+    window = _make_window(tmp_path, monkeypatch)
+    window.start_edit.setDateTime(QDateTime(2026, 8, 25, 0, 0, 0))
+    window.end_edit.setDateTime(QDateTime(2026, 8, 25, 1, 0, 0))
+    cfg = window._build_cfg()
+    assert cfg.start_time.hour == 0
+    assert cfg.end_time.hour == 1
+    assert cfg.start_time.tzinfo is not None
+    assert cfg.start_time.utcoffset() == timedelta(hours=8)

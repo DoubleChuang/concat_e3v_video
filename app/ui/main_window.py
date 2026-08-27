@@ -198,8 +198,8 @@ class MainWindow(QMainWindow):
 
     def _build_cfg(self) -> PipelineConfig:
         tz = pytz.timezone("Asia/Taipei")
-        start = self.start_edit.dateTime().toPython().astimezone(tz)
-        end = self.end_edit.dateTime().toPython().astimezone(tz)
+        start = tz.localize(self.start_edit.dateTime().toPython())
+        end = tz.localize(self.end_edit.dateTime().toPython())
         return PipelineConfig(
             src_dir=self.src_edit.text().strip(),
             dst_dir=self.dst_edit.text().strip(),
