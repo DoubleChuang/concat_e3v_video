@@ -15,10 +15,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install curl and tar
+      - name: Install curl, tar and binutils
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends curl xz-utils
+          apt-get install -y --no-install-recommends curl xz-utils binutils
 
       - name: Install Python deps
         run: pip install -r requirements-dev.txt
