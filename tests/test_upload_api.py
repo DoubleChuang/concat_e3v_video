@@ -112,3 +112,8 @@ def test_upload_video_default_title_is_stem(monkeypatch, tmp_path, fake_vendored
 def test_upload_video_missing_file_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
         up.upload_video(str(tmp_path / "nope.mp4"))
+
+
+def test_upload_video_rejects_non_mp4(tmp_path):
+    with pytest.raises(ValueError):
+        up.upload_video(str(tmp_path))

@@ -422,6 +422,8 @@ def upload_video(
     video_path = Path(video_path).expanduser().resolve()
     if not video_path.exists():
         raise FileNotFoundError(video_path.as_posix())
+    if video_path.suffix.lower() != ".mp4":
+        raise ValueError(f"Only .mp4 is supported (got: {video_path.suffix})")
 
     parser = argparse.ArgumentParser(add_help=False)
     _ensure_vendored_youtube_upload(parser)
