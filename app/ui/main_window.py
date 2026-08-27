@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytz
@@ -15,8 +14,6 @@ from app.pipeline import PipelineConfig
 from app.settings import AppSettings
 from app.ui.auth_dialog import AuthDialog
 from app.worker import PipelineWorker
-
-TAIPEI = pytz.timezone("Asia/Taipei")
 
 
 class MainWindow(QMainWindow):

@@ -1,7 +1,6 @@
 from datetime import datetime
 import threading
 import pytz
-import pytest
 from app.pipeline import PipelineConfig, run_pipeline
 
 TAIPEI = pytz.timezone("Asia/Taipei")
