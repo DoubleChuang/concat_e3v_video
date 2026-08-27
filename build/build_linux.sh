@@ -14,10 +14,14 @@ if [ ! -x "$FFMPEG" ]; then
   else
     URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
   fi
-  curl -L -o /tmp/ffmpeg-linux.tar.xz "$URL"
+  curl -L -o /tmp/ffmpeg-linux.tar.xz "$URL" || { echo "ERROR: ffmpeg download failed ($URL)" >&2; exit 1; }
   tar -xJf /tmp/ffmpeg-linux.tar.xz -C /tmp
   find /tmp -maxdepth 2 -name ffmpeg -type f -exec cp {} "$FFMPEG" \;
   chmod +x "$FFMPEG"
+fi
+if [ ! -x "$FFMPEG" ]; then
+  echo "ERROR: ffmpeg binary not found at $FFMPEG" >&2
+  exit 1
 fi
 
 PYTHON="${PYTHON:-python3}"

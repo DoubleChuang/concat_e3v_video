@@ -54,6 +54,8 @@ jobs:
 
       - name: Build (bundles static ffmpeg)
         run: ./build/build_mac.sh
+        env:
+          PYTHON: python
 
       - name: Rename artifact
         run: mv dist/concat-e3v dist/concat-e3v-macos-x86_64
@@ -81,6 +83,8 @@ jobs:
 
       - name: Build (bundles static ffmpeg)
         run: ./build/build_mac.sh
+        env:
+          PYTHON: python
 
       - name: Rename artifact
         run: mv dist/concat-e3v dist/concat-e3v-macos-arm64
