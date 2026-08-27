@@ -106,3 +106,48 @@ def test_concat_respects_cancel_event(tmp_path, monkeypatch):
     monkeypatch.setattr("e3vvid.video_processor.Popen", _FakePopen)
     names = proc.concat(cancel_event=cancel)
     assert names == []
+
+
+def test_concat_cancel_kills_and_drains(tmp_path, monkeypatch):
+    import time as _time
+
+    instances = []
+
+    class HangingPopen(_FakePopen):
+        def __init__(self, cmd, stdout=None, stderr=None, text=False):
+            super().__init__(cmd, stdout, stderr, text)
+            self.killed = False
+            self.communicated = False
+            instances.append(self)
+
+        def poll(self):
+            return None if not self.killed else -9
+
+        def kill(self):
+            self.killed = True
+
+        def communicate(self):
+            self.communicated = True
+            if self.killed:
+                self.returncode = -9
+            return "", "killed stderr"
+
+    monkeypatch.setattr("e3vvid.video_processor.Popen", HangingPopen)
+    proc = make_processor(
+        tmp_path,
+        ["20260825000000_1.ts", "20260825000100_2.ts"],
+    )
+    cancel = threading.Event()
+
+    def set_cancel():
+        _time.sleep(0.2)
+        cancel.set()
+
+    t = threading.Thread(target=set_cancel)
+    t.start()
+    names = proc.concat(cancel_event=cancel)
+    t.join()
+    assert names == []
+    assert len(instances) == 1  # second segment never started
+    assert instances[0].killed
+    assert instances[0].communicated

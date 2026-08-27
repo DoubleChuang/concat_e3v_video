@@ -127,7 +127,7 @@ class VideoProcessor:
             dst = Path(self._dst_video_dir)
             dst.mkdir(parents=True, exist_ok=True)
 
-            procs = []
+            results = []
             video_names = []
             for i, v in enumerate(video_list):
                 if cancel_event is not None and cancel_event.is_set():
@@ -141,12 +141,9 @@ class VideoProcessor:
                 suffix = "_muted" if self._mute_seconds > 0 else ""
                 video_name = f"{base_name}{suffix}.mp4"
 
-                cmd = self._build_concat_cmd(
-                    videolist.as_posix(), video_name
-                )
+                cmd = self._build_concat_cmd(videolist.as_posix(), video_name)
                 logging.info(cmd)
                 proc = Popen(cmd, stdout=PIPE, stderr=PIPE, text=True)
-                procs.append(proc)
                 video_names.append(video_name)
 
                 if cancel_event is not None:
@@ -155,15 +152,16 @@ class VideoProcessor:
                             proc.kill()
                             break
                         _time.sleep(0.1)
-                else:
-                    proc.communicate()
 
-            for p in procs:
+                stdout, stderr = proc.communicate()
+                results.append((proc, stdout, stderr))
+
+            for p, out, err in results:
                 if p.returncode != 0:
-                    print("處理失敗:", p.stderr)
+                    print("處理失敗:", err)
                     return []
                 else:
-                    print("成功:", p.stdout)
+                    print("成功:", out)
 
             return video_names
         finally:
