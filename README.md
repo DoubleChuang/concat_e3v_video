@@ -48,6 +48,9 @@ Client Secrets：打包後的程式沒有 repo root，請在「上傳到 YouTube
 - Linux: `./build/build_linux.sh`（產物 `dist/concat-e3v`）
 - Windows: `build\build_windows.bat`（產物 `dist\concat-e3v.exe`）
 
+若 venv 的 Python 沒有 shared library（例如 pyenv 未以 `--enable-shared` 建置），PyInstaller 會失敗，
+請用 `PYTHON` 環境變數指定 framework/共享版 Python（例如 `PYTHON="$(pwd)/.venv-build/bin/python" ./build/build_mac.sh`）。
+
 ## Remove System Immutable Flag
 用來刪除緊急鎖檔的檔案
 ```
@@ -68,7 +71,7 @@ python3 upload_mp4_to_youtube.py Front/XXX.mp4
 會出現如下面的資訊
 ```
 Using client secrets: /path/to/client_secret_*.json
-Using credentials file: /Users/double/.youtube-upload-credentials.json
+Using credentials file: ~/.youtube-upload-credentials.json
 Check this link in your browser: https://accounts.google.com/o/oauth2/auth?client_id=YOUR_CLIENT_ID.apps.googleusercontent.com&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube.upload+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube&access_type=offline&response_type=code
 Enter verification code: YOUR_VERIFICATION_CODE
 ```
