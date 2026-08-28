@@ -34,3 +34,13 @@ exe = EXE(
     upx=False,
     console=False,
 )
+if plat == "mac":
+    app = BUNDLE(
+        exe,
+        name="concat-e3v.app",
+        bundle_identifier="com.concat-e3v.app",
+        info_plist={
+            "NSHighResolutionCapable": True,
+            "NSRequiresAquaSystemAppearance": False,
+        },
+    )

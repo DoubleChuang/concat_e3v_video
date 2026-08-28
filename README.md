@@ -68,12 +68,13 @@ python3 main.py /Volumes/Untitled/DCIM/Front Front 2023-07-20T00:00:00 2023-07-2
 
 | 產物 | 平台 |
 |---|---|
-| `concat-e3v-macos-x86_64` | macOS Intel |
-| `concat-e3v-macos-arm64` | macOS Apple Silicon |
-| `concat-e3v-linux-x86_64` | Linux x86_64 |
+| `concat-e3v-macos-x86_64.app.zip` | macOS Intel（.app，解壓後雙擊開啟） |
+| `concat-e3v-macos-arm64.app.zip` | macOS Apple Silicon（.app，解壓後雙擊開啟） |
+| `concat-e3v-linux-x86_64` | Linux x86_64（`chmod +x` 後執行） |
 | `concat-e3v-windows.exe` | Windows x86_64 |
 
-> **未簽章注意**：產物未經 Apple/微軟簽章，首次執行需按右鍵 →「打開」（macOS Gatekeeper）或接受 SmartScreen 警告。
+> **未簽章注意**：產物僅做 ad-hoc 簽章（arm64 可正常執行），未經 Apple 公證。首次開啟 .app 若被 Gatekeeper 阻擋：
+> 在 Finder 對 `.app` 按右鍵 →「打開」；或終端機執行 `xattr -dr com.apple.quarantine concat-e3v.app`。
 
 ## 自行打包
 
