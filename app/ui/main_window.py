@@ -109,6 +109,10 @@ class MainWindow(QMainWindow):
         self.log_edit.setReadOnly(True)
         layout.addWidget(self.log_edit, 1)
 
+        self.upload_btn = QPushButton("單獨上傳影片...")
+        self.upload_btn.clicked.connect(self._open_upload_window)
+        layout.addWidget(self.upload_btn)
+
         self.start_btn = QPushButton("開始處理")
         self.start_btn.clicked.connect(self._on_start)
         layout.addWidget(self.start_btn)
@@ -270,3 +274,8 @@ class MainWindow(QMainWindow):
         else:
             self.log_edit.appendPlainText(f"處理失敗: {result.get('reason')}")
             QMessageBox.critical(self, "失敗", str(result.get("reason")))
+
+    def _open_upload_window(self):
+        from app.ui.upload_window import UploadWindow
+
+        UploadWindow(self).exec()
