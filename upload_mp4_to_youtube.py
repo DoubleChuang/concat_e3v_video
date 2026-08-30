@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Upload a local MP4 to YouTube using the vendored `youtube-upload` project.
+"""Upload a local video file to YouTube using the vendored `youtube-upload` project.
 
 This is a thin wrapper around `youtube_upload.main.main()` so you can run it
 without installing the package globally.
@@ -22,6 +22,12 @@ from typing import Callable
 REPO_ROOT = Path(__file__).resolve().parent
 YOUTUBE_UPLOAD_SRC = REPO_ROOT / "youtube-upload"
 DEFAULT_LOG_FILE = REPO_ROOT / "upload_mp4_to_youtube.log"
+
+SUPPORTED_VIDEO_EXTENSIONS = frozenset({
+    ".mp4", ".mov", ".m4v", ".mkv", ".avi", ".wmv", ".flv", ".webm",
+    ".mpg", ".mpeg", ".mpeg4", ".mpegps", ".3gp", ".3gpp", ".3g2",
+    ".mts", ".m2ts",
+})
 
 
 def _vendored_root() -> Path:
@@ -140,16 +146,19 @@ def _resolve_video_targets(
             path
             for path in video_dir.iterdir()
             if path.is_file()
-            and path.suffix.lower() == ".mp4"
+            and path.suffix.lower() in SUPPORTED_VIDEO_EXTENSIONS
         )
     else:
         video_path = Path(ns.video).expanduser().resolve()
         if not video_path.exists():
             parser.error(f"Video not found: {video_path}")
-        if video_path.suffix.lower() != ".mp4":
+        if video_path.suffix.lower() not in SUPPORTED_VIDEO_EXTENSIONS:
             parser.error(
-                "Only .mp4 is supported by this wrapper (got: %s)"
-                % video_path.suffix
+                "Unsupported format (got: %s). Supported: %s"
+                % (
+                    video_path.suffix or "(none)",
+                    ", ".join(sorted(SUPPORTED_VIDEO_EXTENSIONS)),
+                )
             )
         candidates = [video_path]
 
@@ -266,17 +275,17 @@ def _print_result_summary(
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Upload an MP4 to YouTube (wrapper for vendored youtube-upload)."
+        description="Upload a video to YouTube (wrapper for vendored youtube-upload)."
     )
     parser.add_argument(
         "video",
         nargs="?",
-        help="Path to the .mp4 file",
+        help="Path to a supported video file",
     )
     parser.add_argument(
         "--video-dir",
         default=None,
-        help="Upload all .mp4 files directly under this folder",
+        help="Upload all supported video files directly under this folder",
     )
     parser.add_argument(
         "--exclude",
@@ -418,12 +427,18 @@ def upload_video(
     client_secrets: str | None = None,
     credentials_file: str | None = None,
 ) -> dict[str, str | int | None]:
-    """Upload a single mp4 in-process (no subprocess). Returns result dict."""
+    """Upload a single video file in-process (no subprocess). Returns result dict."""
     video_path = Path(video_path).expanduser().resolve()
     if not video_path.exists():
         raise FileNotFoundError(video_path.as_posix())
-    if video_path.suffix.lower() != ".mp4":
-        raise ValueError(f"Only .mp4 is supported (got: {video_path.suffix})")
+    if video_path.suffix.lower() not in SUPPORTED_VIDEO_EXTENSIONS:
+        raise ValueError(
+            "Unsupported format (got: %s). Supported: %s"
+            % (
+                video_path.suffix or "(none)",
+                ", ".join(sorted(SUPPORTED_VIDEO_EXTENSIONS)),
+            )
+        )
 
     parser = argparse.ArgumentParser(add_help=False)
     _ensure_vendored_youtube_upload(parser)
@@ -565,7 +580,7 @@ def main() -> int:
         )
 
     if not selected_videos:
-        logging.warning("no mp4 files selected for upload")
+        logging.warning("no supported video files selected for upload")
         _print_result_summary(result)
         return 0
 

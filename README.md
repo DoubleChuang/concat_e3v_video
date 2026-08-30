@@ -89,7 +89,7 @@ python3 main.py /Volumes/Untitled/DCIM/Front Front 2023-07-20T00:00:00 2023-07-2
 
 ## YouTube 重新授權（手動）
 
-執行以下指令 上傳 mp4：
+執行以下指令上傳影片（支援 mp4、mov、mkv、avi、webm、3gp 等格式，單檔或 `--video-dir` 批次）：
 
 ```
 python3 upload_mp4_to_youtube.py Front/XXX.mp4

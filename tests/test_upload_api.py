@@ -114,6 +114,30 @@ def test_upload_video_missing_file_raises(tmp_path):
         up.upload_video(str(tmp_path / "nope.mp4"))
 
 
-def test_upload_video_rejects_non_mp4(tmp_path):
+@pytest.mark.parametrize("suffix", [".mp4", ".mov", ".mkv", ".avi", ".webm", ".3gp"])
+def test_upload_video_accepts_supported_formats(monkeypatch, tmp_path, fake_vendored, suffix):
+    video = tmp_path / f"clip{suffix}"
+    video.write_bytes(b"x")
+    seen = {}
+
+    def fake_upload_one(ns, video_path, youtube_upload_main):
+        seen["file"] = video_path.as_posix()
+        return {"file": video_path.as_posix(), "name": video_path.name, "exit_code": 0, "video_id": "abc"}
+
+    monkeypatch.setattr(up, "_upload_one_video", fake_upload_one)
+    result = up.upload_video(str(video))
+    assert result["exit_code"] == 0
+    assert seen["file"] == video.as_posix()
+
+
+@pytest.mark.parametrize("suffix", [".txt", ".pdf"])
+def test_upload_video_rejects_unsupported_format(tmp_path, suffix):
+    video = tmp_path / f"clip{suffix}"
+    video.write_bytes(b"x")
+    with pytest.raises(ValueError):
+        up.upload_video(str(video))
+
+
+def test_upload_video_rejects_directory(tmp_path):
     with pytest.raises(ValueError):
         up.upload_video(str(tmp_path))
