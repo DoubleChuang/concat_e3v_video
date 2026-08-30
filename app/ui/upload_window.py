@@ -224,4 +224,7 @@ class UploadWindow(QDialog):
         if self._worker is not None and self._worker.isRunning():
             self._worker.cancel()
             self._worker.wait(5000)
+            if self._worker.isRunning():
+                event.ignore()
+                return
         super().closeEvent(event)
