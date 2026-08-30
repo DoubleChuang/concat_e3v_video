@@ -22,6 +22,7 @@ class UploadWindow(QDialog):
         self.resize(560, 560)
         self._settings = AppSettings()
         self._worker: UploadWorker | None = None
+        self._uploading = False
 
         layout = QVBoxLayout(self)
 
@@ -144,7 +145,7 @@ class UploadWindow(QDialog):
         s.set_value("client_secrets", self.cs_edit.text())
 
     def _on_upload(self):
-        if self._worker is not None and self._worker.isRunning():
+        if self._uploading:
             self._worker.cancel()
             self.log_edit.appendPlainText("已送出停止要求...")
             return
@@ -170,6 +171,7 @@ class UploadWindow(QDialog):
         self._worker.auth_required.connect(self._on_auth_required)
         self._worker.auth_code_required.connect(self._on_auth_code_required)
         self.upload_btn.setText("停止")
+        self._uploading = True
         self._worker.start()
 
     def _on_auth_required(self, message: str):
@@ -191,6 +193,9 @@ class UploadWindow(QDialog):
             self._worker.cancel()
 
     def _on_finished(self, result: dict):
+        if self._worker is not self.sender():
+            return
+        self._uploading = False
         self.upload_btn.setText("上傳")
         status = result.get("status")
         uploaded = result.get("uploaded", [])
@@ -221,10 +226,10 @@ class UploadWindow(QDialog):
             QMessageBox.critical(self, "失敗", str(result.get("reason")))
 
     def closeEvent(self, event):
-        if self._worker is not None and self._worker.isRunning():
+        if self._uploading:
             self._worker.cancel()
             self._worker.wait(5000)
-            if self._worker.isRunning():
+            if self._uploading:
                 event.ignore()
                 return
         super().closeEvent(event)

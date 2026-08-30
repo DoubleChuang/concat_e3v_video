@@ -37,12 +37,32 @@ def test_upload_worker_uploads_all_files(qapp, monkeypatch, tmp_path):
     monkeypatch.setattr("app.auth_flow.check_youtube_upload_available", lambda **kw: None)
 
     files = [str(tmp_path / "a.mp4"), str(tmp_path / "b.mov")]
-    worker = UploadWorker(UploadConfig(files=files, title="T"))
+    worker = UploadWorker(
+        UploadConfig(
+            files=files,
+            title="My Title",
+            description="My Desc",
+            privacy="unlisted",
+            tags="tag1, tag2",
+            playlist="My Playlist",
+            client_secrets="/tmp/cs.json",
+            credentials_file="/tmp/cred.json",
+        )
+    )
     results = {}
     worker.finished.connect(lambda r: results.update(r))
     assert _run_and_pump(qapp, worker)
     assert results["status"] == "done"
     assert [c[0] for c in calls] == files
+    assert calls[0][1] == {
+        "title": "My Title",
+        "description": "My Desc",
+        "tags": "tag1, tag2",
+        "privacy": "unlisted",
+        "playlist": "My Playlist",
+        "client_secrets": "/tmp/cs.json",
+        "credentials_file": "/tmp/cred.json",
+    }
     assert len(results["uploaded"]) == 2
 
 
@@ -64,6 +84,7 @@ def test_upload_worker_auth_failure_aborts(qapp, monkeypatch, tmp_path):
     assert _run_and_pump(qapp, worker)
     assert len(auth_msgs) == 1
     assert results["status"] == "aborted"
+    assert results["reason"] == "youtube-auth-failed"
 
 
 def test_upload_worker_reports_failed_files(qapp, monkeypatch, tmp_path):
@@ -99,3 +120,36 @@ def test_upload_worker_cancel_aborts(qapp, monkeypatch, tmp_path):
     assert worker.wait(5000)
     qapp.processEvents()
     assert results["status"] == "aborted"
+
+
+def test_upload_worker_cancelled_result_keeps_completed_files(qapp, monkeypatch, tmp_path):
+    import threading
+    import time as _t
+
+    calls = []
+    proceed = threading.Event()
+
+    def fake_upload_video(path, **kw):
+        calls.append(path)
+        proceed.wait(5.0)
+        return {"file": path, "name": path, "exit_code": 0, "video_id": f"id{len(calls)}"}
+
+    monkeypatch.setattr("app.upload_worker.upload_video", fake_upload_video)
+    monkeypatch.setattr("app.auth_flow.check_youtube_upload_available", lambda **kw: None)
+    worker = UploadWorker(
+        UploadConfig(files=[str(tmp_path / "a.mp4"), str(tmp_path / "b.mp4")])
+    )
+    results = {}
+    worker.finished.connect(lambda r: results.update(r))
+    worker.start()
+    deadline = _t.time() + 5.0
+    while not calls and _t.time() < deadline:
+        qapp.processEvents()
+        _t.sleep(0.01)
+    assert calls
+    worker.cancel()
+    proceed.set()
+    assert worker.wait(5000)
+    qapp.processEvents()
+    assert results["status"] == "aborted"
+    assert len(results["uploaded"]) >= 1

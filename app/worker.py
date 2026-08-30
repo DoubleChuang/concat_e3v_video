@@ -18,7 +18,6 @@ class PipelineWorker(QThread):
         self._cancel = threading.Event()
         cfg.cancel_event = self._cancel
         self._code_event = threading.Event()
-        self._code: str | None = None
         self._retry_event = threading.Event()
         self._auth = AuthFlow(
             self._code_event,
