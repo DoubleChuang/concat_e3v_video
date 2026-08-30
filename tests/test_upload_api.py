@@ -141,3 +141,16 @@ def test_upload_video_rejects_unsupported_format(tmp_path, suffix):
 def test_upload_video_rejects_directory(tmp_path):
     with pytest.raises(ValueError):
         up.upload_video(str(tmp_path))
+
+
+def test_list_video_files_filters_and_sorts(tmp_path):
+    for name in ["b.mp4", "a.mov", "c.mkv", "note.txt", ".DS_Store"]:
+        (tmp_path / name).write_bytes(b"x")
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "nested.mp4").write_bytes(b"x")
+    names = [p.name for p in up.list_video_files(tmp_path)]
+    assert names == ["a.mov", "b.mp4", "c.mkv"]
+
+
+def test_list_video_files_missing_dir(tmp_path):
+    assert up.list_video_files(tmp_path / "nope") == []

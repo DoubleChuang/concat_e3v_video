@@ -118,6 +118,18 @@ def _matches_exclude_pattern(
     )
 
 
+def list_video_files(directory: str | Path) -> list[Path]:
+    directory = Path(directory).expanduser().resolve()
+    if not directory.is_dir():
+        return []
+    return sorted(
+        path
+        for path in directory.iterdir()
+        if path.is_file()
+        and path.suffix.lower() in SUPPORTED_VIDEO_EXTENSIONS
+    )
+
+
 def _resolve_video_targets(
     parser: argparse.ArgumentParser,
     ns: argparse.Namespace,
@@ -142,12 +154,7 @@ def _resolve_video_targets(
             parser.error(
                 f"Not a directory: {video_dir}"
             )
-        candidates = sorted(
-            path
-            for path in video_dir.iterdir()
-            if path.is_file()
-            and path.suffix.lower() in SUPPORTED_VIDEO_EXTENSIONS
-        )
+        candidates = list_video_files(video_dir)
     else:
         video_path = Path(ns.video).expanduser().resolve()
         if not video_path.exists():
