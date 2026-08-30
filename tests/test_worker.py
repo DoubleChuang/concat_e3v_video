@@ -50,7 +50,7 @@ def test_worker_survives_system_exit_from_auth(qapp, monkeypatch, tmp_path):
             return {"status": "aborted", "reason": "youtube-auth-failed", "video_names": [], "upload_results": []}
         return {"status": "done", "video_names": [], "upload_results": [], "reason": None}
 
-    monkeypatch.setattr("app.worker.check_youtube_upload_available", fake_check)
+    monkeypatch.setattr("app.auth_flow.check_youtube_upload_available", fake_check)
     monkeypatch.setattr("app.worker.run_pipeline", fake_run_pipeline)
     cfg = make_cfg(tmp_path)
     worker = PipelineWorker(cfg)
@@ -90,7 +90,7 @@ def test_worker_emits_finished_on_success(qapp, monkeypatch, tmp_path):
         return None
 
     monkeypatch.setattr("app.worker.run_pipeline", fake_run_pipeline)
-    monkeypatch.setattr("app.worker.check_youtube_upload_available", fake_check)
+    monkeypatch.setattr("app.auth_flow.check_youtube_upload_available", fake_check)
 
     cfg = make_cfg(tmp_path)
     worker = PipelineWorker(cfg)
@@ -149,7 +149,7 @@ def test_worker_auth_code_submitted(qapp, monkeypatch, tmp_path):
             return {"status": "aborted", "reason": "youtube-auth-failed", "video_names": [], "upload_results": []}
         return {"status": "done", "video_names": [], "upload_results": [], "reason": None}
 
-    monkeypatch.setattr("app.worker.check_youtube_upload_available", fake_check)
+    monkeypatch.setattr("app.auth_flow.check_youtube_upload_available", fake_check)
     monkeypatch.setattr("app.worker.run_pipeline", fake_run_pipeline)
     cfg = make_cfg(tmp_path)
     worker = PipelineWorker(cfg)
@@ -179,7 +179,7 @@ def test_worker_cancel_while_waiting_for_code(qapp, monkeypatch, tmp_path):
             return {"status": "aborted", "reason": "youtube-auth-failed", "video_names": [], "upload_results": []}
         return {"status": "done", "video_names": [], "upload_results": [], "reason": None}
 
-    monkeypatch.setattr("app.worker.check_youtube_upload_available", fake_check)
+    monkeypatch.setattr("app.auth_flow.check_youtube_upload_available", fake_check)
     monkeypatch.setattr("app.worker.run_pipeline", fake_run_pipeline)
     cfg = make_cfg(tmp_path)
     worker = PipelineWorker(cfg)
@@ -208,7 +208,7 @@ def test_worker_auth_retry_after_failure(qapp, monkeypatch, tmp_path):
             return {"status": "aborted", "reason": "youtube-auth-failed", "video_names": [], "upload_results": []}
         return {"status": "done", "video_names": [], "upload_results": [], "reason": None}
 
-    monkeypatch.setattr("app.worker.check_youtube_upload_available", fake_check)
+    monkeypatch.setattr("app.auth_flow.check_youtube_upload_available", fake_check)
     monkeypatch.setattr("app.worker.run_pipeline", fake_run_pipeline)
     cfg = make_cfg(tmp_path)
     worker = PipelineWorker(cfg)

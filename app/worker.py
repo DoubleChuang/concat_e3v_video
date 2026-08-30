@@ -3,7 +3,7 @@ import threading
 from PySide6.QtCore import QThread, Signal
 
 from app.pipeline import PipelineConfig, run_pipeline
-from upload_mp4_to_youtube import check_youtube_upload_available
+from app.auth_flow import AuthFlow
 
 
 class PipelineWorker(QThread):
@@ -20,6 +20,13 @@ class PipelineWorker(QThread):
         self._code_event = threading.Event()
         self._code: str | None = None
         self._retry_event = threading.Event()
+        self._auth = AuthFlow(
+            self._code_event,
+            self._retry_event,
+            self._cancel,
+            emit_code_required=self.auth_code_required.emit,
+            emit_auth_required=self.auth_required.emit,
+        )
 
     def cancel(self) -> None:
         self._cancel.set()
@@ -27,34 +34,16 @@ class PipelineWorker(QThread):
         self._retry_event.set()
 
     def submit_auth_code(self, code: str) -> None:
-        self._code = code
-        self._code_event.set()
+        self._auth.set_code(code)
 
     def retry_auth(self) -> None:
         self._retry_event.set()
 
-    def _get_code_callback(self, url: str) -> str:
-        self.auth_code_required.emit(url)
-        self._code_event.wait()
-        self._code_event.clear()
-        if self._cancel.is_set():
-            raise RuntimeError("auth cancelled")
-        return self._code or ""
-
     def _auth_check(self) -> bool:
-        while not self._cancel.is_set():
-            try:
-                check_youtube_upload_available(
-                    client_secrets=self._cfg.client_secrets,
-                    credentials_file=self._cfg.credentials_file,
-                    get_code_callback=self._get_code_callback,
-                )
-                return True
-            except BaseException as exc:
-                self.auth_required.emit(str(exc))
-                self._retry_event.wait()
-                self._retry_event.clear()
-        return False
+        return self._auth.auth_check(
+            client_secrets=self._cfg.client_secrets,
+            credentials_file=self._cfg.credentials_file,
+        )
 
     def run(self) -> None:
         cfg = self._cfg
