@@ -5,3 +5,7 @@ google-api-python-client
 oauth2client
 httplib2
 google-auth-httplib2
+# 42.0.8 是最後一個有 CPython macosx x86_64 wheel 的版本；
+# 新版只有 arm64 wheel，Intel Mac 上會 source build 而連結新版 OpenSSL，
+# 與打包進 app 的舊版 libssl 不相容（dlopen: Symbol not found: _SSL_get0_group_name）
+cryptography==42.0.8
