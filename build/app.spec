@@ -28,6 +28,10 @@ for pkg in (
     extra_binaries += b
     extra_hiddenimports += h
 
+# stdlib modules imported only by the vendored youtube-upload (optparse,
+# collections, locale, time) are invisible to analysis; pull them in.
+extra_hiddenimports += ["optparse", "collections", "locale", "time"]
+
 a = Analysis(
     [os.path.join(root, "app", "main.py")],
     pathex=[root],
