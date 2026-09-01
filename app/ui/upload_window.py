@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
-    QAbstractItemView, QComboBox, QDialog, QFileDialog, QFormLayout,
-    QHBoxLayout, QLineEdit, QListWidget, QMessageBox, QPlainTextEdit,
-    QPushButton, QVBoxLayout, QWidget,
+    QAbstractItemView, QCheckBox, QComboBox, QDialog, QFileDialog,
+    QFormLayout, QHBoxLayout, QLineEdit, QListWidget, QMessageBox,
+    QPlainTextEdit, QPushButton, QVBoxLayout, QWidget,
 )
 
 from app.settings import AppSettings
@@ -11,7 +11,7 @@ from upload_mp4_to_youtube import SUPPORTED_VIDEO_EXTENSIONS, list_video_files
 
 
 def _file_dialog_filter() -> str:
-    exts = " ".join(sorted(SUPPORTED_VIDEO_EXTENSIONS))
+    exts = " ".join(f"*{ext}" for ext in sorted(SUPPORTED_VIDEO_EXTENSIONS))
     return f"影片 ({exts})"
 
 
@@ -31,8 +31,10 @@ class UploadWindow(QDialog):
         self.files_btn.clicked.connect(self._pick_files)
         self.dir_btn = QPushButton("選擇資料夾...")
         self.dir_btn.clicked.connect(self._pick_dir)
+        self.recursive_check = QCheckBox("遞迴包含子資料夾")
         pick_row.addWidget(self.files_btn)
         pick_row.addWidget(self.dir_btn)
+        pick_row.addWidget(self.recursive_check)
         pick_row.addStretch()
         layout.addLayout(pick_row)
 
@@ -98,7 +100,15 @@ class UploadWindow(QDialog):
         path = QFileDialog.getExistingDirectory(self, "選擇資料夾")
         if not path:
             return
-        self._add_paths([p.as_posix() for p in list_video_files(path)])
+        self._add_paths(
+            [
+                p.as_posix()
+                for p in list_video_files(
+                    path,
+                    recursive=self.recursive_check.isChecked(),
+                )
+            ]
+        )
 
     def _add_paths(self, paths):
         existing = set(self._paths())
@@ -134,6 +144,7 @@ class UploadWindow(QDialog):
         self.tags_edit.setText(s.value("upload_tags", ""))
         self.playlist_edit.setText(s.value("upload_playlist", ""))
         self.cs_edit.setText(s.value("client_secrets", ""))
+        self.recursive_check.setChecked(bool(s.value("upload_recursive", False)))
 
     def _save_settings(self):
         s = self._settings
@@ -143,6 +154,7 @@ class UploadWindow(QDialog):
         s.set_value("upload_tags", self.tags_edit.text())
         s.set_value("upload_playlist", self.playlist_edit.text())
         s.set_value("client_secrets", self.cs_edit.text())
+        s.set_value("upload_recursive", self.recursive_check.isChecked())
 
     def _on_upload(self):
         if self._uploading:

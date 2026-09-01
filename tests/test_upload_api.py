@@ -154,3 +154,14 @@ def test_list_video_files_filters_and_sorts(tmp_path):
 
 def test_list_video_files_missing_dir(tmp_path):
     assert up.list_video_files(tmp_path / "nope") == []
+
+
+def test_list_video_files_recursive(tmp_path):
+    (tmp_path / "a.mp4").write_bytes(b"x")
+    (tmp_path / "note.txt").write_bytes(b"x")
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "b.mov").write_bytes(b"x")
+    (sub / ".DS_Store").write_bytes(b"x")
+    assert [p.name for p in up.list_video_files(tmp_path, recursive=True)] == ["a.mp4", "b.mov"]
+    assert [p.name for p in up.list_video_files(tmp_path)] == ["a.mp4"]

@@ -118,13 +118,19 @@ def _matches_exclude_pattern(
     )
 
 
-def list_video_files(directory: str | Path) -> list[Path]:
+def list_video_files(
+    directory: str | Path,
+    recursive: bool = False,
+) -> list[Path]:
     directory = Path(directory).expanduser().resolve()
     if not directory.is_dir():
         return []
+    paths = (
+        directory.rglob("*") if recursive else directory.iterdir()
+    )
     return sorted(
         path
-        for path in directory.iterdir()
+        for path in paths
         if path.is_file()
         and path.suffix.lower() in SUPPORTED_VIDEO_EXTENSIONS
     )
