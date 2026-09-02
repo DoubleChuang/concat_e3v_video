@@ -134,14 +134,17 @@ def build_history_record(result: dict) -> dict:
     timestamp = datetime.now().astimezone().isoformat()
     if result.get("exit_code") == 0:
         video_id = result.get("video_id")
-        return {
-            "file": result["file"],
-            "status": "success",
-            "video_id": video_id,
-            "youtube_url": f"https://youtu.be/{video_id}",
-            "timestamp": timestamp,
-        }
-    error = result.get("error") or f"exit code {result.get('exit_code')}"
+        if video_id:
+            return {
+                "file": result["file"],
+                "status": "success",
+                "video_id": video_id,
+                "youtube_url": f"https://youtu.be/{video_id}",
+                "timestamp": timestamp,
+            }
+        error = "missing video id"
+    else:
+        error = result.get("error") or f"exit code {result.get('exit_code')}"
     return {
         "file": result["file"],
         "status": "failed",
@@ -705,7 +708,14 @@ def main() -> int:
         build_history_record(r)
         for r in result["uploaded"] + result["failed"]
     ]
-    append_upload_history(ns.history_file, records)
+    try:
+        append_upload_history(ns.history_file, records)
+    except OSError as exc:
+        logging.error(
+            "failed to write upload history %s: %s",
+            ns.history_file,
+            exc,
+        )
 
     _print_result_summary(result)
 

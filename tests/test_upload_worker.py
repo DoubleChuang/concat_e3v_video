@@ -204,3 +204,33 @@ def test_upload_worker_skips_history_when_unset(qapp, monkeypatch, tmp_path):
     worker.finished.connect(lambda r: results.update(r))
     assert _run_and_pump(qapp, worker)
     assert calls == []
+
+
+def test_upload_worker_history_write_error_continues_batch(qapp, monkeypatch, tmp_path):
+    calls = []
+
+    def fake_upload_video(path, **kw):
+        return {"file": path, "name": path, "exit_code": 0, "video_id": f"id{len(calls)}"}
+
+    def boom(*a, **kw):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("app.upload_worker.upload_video", fake_upload_video)
+    monkeypatch.setattr(
+        "app.auth_flow.check_youtube_upload_available", lambda **kw: None
+    )
+    monkeypatch.setattr("app.upload_worker.append_upload_history", boom)
+    worker = UploadWorker(
+        UploadConfig(
+            files=[str(tmp_path / "a.mp4"), str(tmp_path / "b.mp4")],
+            history_file=str(tmp_path / "h.json"),
+        )
+    )
+    results = {}
+    logs = []
+    worker.log.connect(logs.append)
+    worker.finished.connect(lambda r: results.update(r))
+    assert _run_and_pump(qapp, worker)
+    assert results["status"] == "done"
+    assert len(results["uploaded"]) == 2
+    assert any("無法寫入上傳紀錄" in line for line in logs)

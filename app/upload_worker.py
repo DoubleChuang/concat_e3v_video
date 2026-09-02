@@ -99,10 +99,15 @@ class UploadWorker(QThread):
                     self.log.emit(f"上傳失敗: {result.get('error')}")
                     failed.append(result)
                 if cfg.history_file is not None:
-                    append_upload_history(
-                        cfg.history_file,
-                        [build_history_record(result)],
-                    )
+                    try:
+                        append_upload_history(
+                            cfg.history_file,
+                            [build_history_record(result)],
+                        )
+                    except OSError as exc:
+                        self.log.emit(
+                            f"無法寫入上傳紀錄: {exc}"
+                        )
                 if self._cancel.is_set():
                     break
             if self._cancel.is_set():
