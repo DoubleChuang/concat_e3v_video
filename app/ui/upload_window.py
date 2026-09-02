@@ -12,6 +12,7 @@ from app.ui.auth_dialog import AuthDialog
 from app.upload_worker import UploadConfig, UploadWorker
 from upload_mp4_to_youtube import (
     SUPPORTED_VIDEO_EXTENSIONS,
+    UPLOAD_HISTORY_DEFAULT,
     is_supported_video_file,
     list_video_files,
 )
@@ -134,6 +135,18 @@ class UploadWindow(QDialog):
         lay.addWidget(self.cs_edit, 1)
         lay.addWidget(cs_btn)
         form.addRow("Client Secrets:", row)
+        self.history_edit = QLineEdit()
+        self.history_edit.setPlaceholderText(
+            f"預設: {UPLOAD_HISTORY_DEFAULT}"
+        )
+        history_btn = QPushButton("瀏覽...")
+        history_btn.clicked.connect(self._pick_history_file)
+        row = QWidget()
+        lay = QHBoxLayout(row)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(self.history_edit, 1)
+        lay.addWidget(history_btn)
+        form.addRow("紀錄檔:", row)
         layout.addLayout(form)
 
         self.log_edit = QPlainTextEdit()
@@ -191,6 +204,15 @@ class UploadWindow(QDialog):
         if path:
             self.cs_edit.setText(path)
 
+    def _pick_history_file(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "選擇上傳紀錄檔",
+            self.history_edit.text() or str(Path.home()),
+            "JSON (*.json)",
+        )
+        if path:
+            self.history_edit.setText(path)
+
     def _add_pasted_paths(self):
         text = self.paste_edit.toPlainText()
         if not text.strip():
@@ -214,6 +236,7 @@ class UploadWindow(QDialog):
         self.tags_edit.setText(s.value("upload_tags", ""))
         self.playlist_edit.setText(s.value("upload_playlist", ""))
         self.cs_edit.setText(s.value("client_secrets", ""))
+        self.history_edit.setText(s.value("upload_history_file", ""))
         self.recursive_check.setChecked(bool(s.value("upload_recursive", False)))
 
     def _save_settings(self):
@@ -224,6 +247,7 @@ class UploadWindow(QDialog):
         s.set_value("upload_tags", self.tags_edit.text())
         s.set_value("upload_playlist", self.playlist_edit.text())
         s.set_value("client_secrets", self.cs_edit.text())
+        s.set_value("upload_history_file", self.history_edit.text())
         s.set_value("upload_recursive", self.recursive_check.isChecked())
 
     def _on_upload(self):
@@ -246,6 +270,10 @@ class UploadWindow(QDialog):
             tags=self.tags_edit.text().strip() or None,
             playlist=self.playlist_edit.text().strip() or None,
             client_secrets=self.cs_edit.text().strip() or None,
+            history_file=(
+                self.history_edit.text().strip()
+                or UPLOAD_HISTORY_DEFAULT.as_posix()
+            ),
         )
         self._worker = UploadWorker(cfg, parent=self)
         self._worker.log.connect(self.log_edit.appendPlainText)
