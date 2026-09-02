@@ -620,6 +620,11 @@ def main() -> int:
         action="store_true",
         help="Open the uploaded video URL after upload",
     )
+    parser.add_argument(
+        "--history-file",
+        default=UPLOAD_HISTORY_DEFAULT.as_posix(),
+        help="Upload history JSON file (default: ~/concat-e3v-upload-history.json)",
+    )
 
     ns = parser.parse_args()
     _configure_logging(ns.log_file)
@@ -695,6 +700,13 @@ def main() -> int:
         result["failed_count"],
         result["skipped_count"],
     )
+
+    records = [
+        build_history_record(r)
+        for r in result["uploaded"] + result["failed"]
+    ]
+    append_upload_history(ns.history_file, records)
+
     _print_result_summary(result)
 
     if result["failed_count"]:
