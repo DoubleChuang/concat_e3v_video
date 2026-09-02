@@ -1,18 +1,63 @@
+import re
+from pathlib import Path
+
 from PySide6.QtWidgets import (
     QAbstractItemView, QCheckBox, QComboBox, QDialog, QFileDialog,
-    QFormLayout, QHBoxLayout, QLineEdit, QListWidget, QMessageBox,
-    QPlainTextEdit, QPushButton, QVBoxLayout, QWidget,
+    QFormLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget,
+    QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget,
 )
 
 from app.settings import AppSettings
 from app.ui.auth_dialog import AuthDialog
 from app.upload_worker import UploadConfig, UploadWorker
-from upload_mp4_to_youtube import SUPPORTED_VIDEO_EXTENSIONS, list_video_files
+from upload_mp4_to_youtube import (
+    SUPPORTED_VIDEO_EXTENSIONS,
+    is_supported_video_file,
+    list_video_files,
+)
 
 
 def _file_dialog_filter() -> str:
     exts = " ".join(f"*{ext}" for ext in sorted(SUPPORTED_VIDEO_EXTENSIONS))
     return f"影片 ({exts})"
+
+
+def _strip_quotes(text: str) -> str:
+    text = text.strip()
+    if (
+        len(text) >= 2
+        and text[0] == text[-1]
+        and text[0] in ("'", '"')
+    ):
+        return text[1:-1]
+    return text
+
+
+def parse_pasted_paths(text: str) -> list[str]:
+    parts = re.split(r"[\n,]+", text)
+    paths: list[str] = []
+    for part in parts:
+        cleaned = _strip_quotes(part).strip()
+        if not cleaned:
+            continue
+        paths.append(str(Path(cleaned).expanduser()))
+    return paths
+
+
+def resolve_pasted_paths(
+    text: str,
+) -> tuple[list[Path], list[tuple[str, str]]]:
+    valid: list[Path] = []
+    invalid: list[tuple[str, str]] = []
+    for raw in parse_pasted_paths(text):
+        path = Path(raw)
+        if not path.is_file():
+            invalid.append((raw, "檔案不存在"))
+        elif not is_supported_video_file(path):
+            invalid.append((raw, "不支援的格式"))
+        else:
+            valid.append(path)
+    return valid, invalid
 
 
 class UploadWindow(QDialog):
@@ -51,6 +96,17 @@ class UploadWindow(QDialog):
         remove_row.addWidget(self.clear_btn)
         remove_row.addStretch()
         layout.addLayout(remove_row)
+
+        paste_label = QLabel("貼上檔案路徑（一行一個，支援逗號分隔與引號）：")
+        layout.addWidget(paste_label)
+        paste_row = QHBoxLayout()
+        self.paste_edit = QPlainTextEdit()
+        self.paste_edit.setMaximumHeight(70)
+        self.paste_btn = QPushButton("加入清單")
+        self.paste_btn.clicked.connect(self._add_pasted_paths)
+        paste_row.addWidget(self.paste_edit, 1)
+        paste_row.addWidget(self.paste_btn)
+        layout.addLayout(paste_row)
 
         form = QFormLayout()
         self.title_edit = QLineEdit()
@@ -134,6 +190,20 @@ class UploadWindow(QDialog):
         )
         if path:
             self.cs_edit.setText(path)
+
+    def _add_pasted_paths(self):
+        text = self.paste_edit.toPlainText()
+        if not text.strip():
+            return
+        valid, invalid = resolve_pasted_paths(text)
+        self._add_paths([p.as_posix() for p in valid])
+        if invalid:
+            lines = "\n".join(
+                f"{path}（{reason}）" for path, reason in invalid
+            )
+            QMessageBox.warning(
+                self, "部分路徑無法加入", f"以下路徑無法加入：\n\n{lines}"
+            )
 
     def _load_settings(self):
         s = self._settings
