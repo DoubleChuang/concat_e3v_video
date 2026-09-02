@@ -13,8 +13,10 @@ import argparse
 import io
 import json
 import logging
+import os
 import sys
 from contextlib import redirect_stdout
+from datetime import datetime
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Callable
@@ -118,6 +120,65 @@ def _matches_exclude_pattern(
     )
 
 
+def is_supported_video_file(path: Path) -> bool:
+    return (
+        path.is_file()
+        and path.suffix.lower() in SUPPORTED_VIDEO_EXTENSIONS
+    )
+
+
+UPLOAD_HISTORY_DEFAULT = Path.home() / "concat-e3v-upload-history.json"
+
+
+def build_history_record(result: dict) -> dict:
+    timestamp = datetime.now().astimezone().isoformat()
+    if result.get("exit_code") == 0:
+        video_id = result.get("video_id")
+        return {
+            "file": result["file"],
+            "status": "success",
+            "video_id": video_id,
+            "youtube_url": f"https://youtu.be/{video_id}",
+            "timestamp": timestamp,
+        }
+    error = result.get("error") or f"exit code {result.get('exit_code')}"
+    return {
+        "file": result["file"],
+        "status": "failed",
+        "error": error,
+        "timestamp": timestamp,
+    }
+
+
+def append_upload_history(
+    history_file: str | Path,
+    records: list[dict],
+) -> None:
+    if not records:
+        return
+    path = Path(history_file).expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    uploads: list[dict] = []
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and isinstance(
+                data.get("uploads"), list
+            ):
+                uploads = data["uploads"]
+        except (OSError, ValueError):
+            uploads = []
+    uploads.extend(records)
+    tmp_path = path.with_name(path.name + ".tmp")
+    tmp_path.write_text(
+        json.dumps(
+            {"uploads": uploads}, ensure_ascii=False, indent=2
+        ),
+        encoding="utf-8",
+    )
+    os.replace(tmp_path, path)
+
+
 def list_video_files(
     directory: str | Path,
     recursive: bool = False,
@@ -131,8 +192,7 @@ def list_video_files(
     return sorted(
         path
         for path in paths
-        if path.is_file()
-        and path.suffix.lower() in SUPPORTED_VIDEO_EXTENSIONS
+        if is_supported_video_file(path)
     )
 
 

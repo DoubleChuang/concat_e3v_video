@@ -165,3 +165,12 @@ def test_list_video_files_recursive(tmp_path):
     (sub / ".DS_Store").write_bytes(b"x")
     assert [p.name for p in up.list_video_files(tmp_path, recursive=True)] == ["a.mp4", "b.mov"]
     assert [p.name for p in up.list_video_files(tmp_path)] == ["a.mp4"]
+
+
+def test_is_supported_video_file(tmp_path):
+    video = tmp_path / "clip.mov"
+    video.write_bytes(b"x")
+    assert up.is_supported_video_file(video)
+    assert not up.is_supported_video_file(tmp_path / "note.txt")
+    assert not up.is_supported_video_file(tmp_path / "missing.mp4")
+    assert not up.is_supported_video_file(tmp_path)
