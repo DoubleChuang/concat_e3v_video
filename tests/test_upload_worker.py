@@ -153,3 +153,54 @@ def test_upload_worker_cancelled_result_keeps_completed_files(qapp, monkeypatch,
     qapp.processEvents()
     assert results["status"] == "aborted"
     assert len(results["uploaded"]) >= 1
+
+
+def test_upload_worker_writes_history(qapp, monkeypatch, tmp_path):
+    import json
+
+    def fake_upload_video(path, **kw):
+        if path.endswith("bad.mp4"):
+            return {"file": path, "name": path, "exit_code": 1, "error": "boom"}
+        return {"file": path, "name": path, "exit_code": 0, "video_id": "ok1"}
+
+    monkeypatch.setattr("app.upload_worker.upload_video", fake_upload_video)
+    monkeypatch.setattr(
+        "app.auth_flow.check_youtube_upload_available", lambda **kw: None
+    )
+    history = tmp_path / "h.json"
+    worker = UploadWorker(
+        UploadConfig(
+            files=[str(tmp_path / "ok.mp4"), str(tmp_path / "bad.mp4")],
+            history_file=str(history),
+        )
+    )
+    results = {}
+    worker.finished.connect(lambda r: results.update(r))
+    assert _run_and_pump(qapp, worker)
+    assert results["status"] == "done"
+    data = json.loads(history.read_text(encoding="utf-8"))
+    assert len(data["uploads"]) == 2
+    by_status = {u["status"]: u for u in data["uploads"]}
+    assert by_status["success"]["youtube_url"] == "https://youtu.be/ok1"
+    assert by_status["failed"]["error"] == "boom"
+
+
+def test_upload_worker_skips_history_when_unset(qapp, monkeypatch, tmp_path):
+    calls = []
+
+    def fake_upload_video(path, **kw):
+        return {"file": path, "name": path, "exit_code": 0, "video_id": "x"}
+
+    monkeypatch.setattr("app.upload_worker.upload_video", fake_upload_video)
+    monkeypatch.setattr(
+        "app.auth_flow.check_youtube_upload_available", lambda **kw: None
+    )
+    monkeypatch.setattr(
+        "app.upload_worker.append_upload_history",
+        lambda *a, **kw: calls.append((a, kw)),
+    )
+    worker = UploadWorker(UploadConfig(files=[str(tmp_path / "a.mp4")]))
+    results = {}
+    worker.finished.connect(lambda r: results.update(r))
+    assert _run_and_pump(qapp, worker)
+    assert calls == []

@@ -5,7 +5,11 @@ from pathlib import Path
 from PySide6.QtCore import QThread, Signal
 
 from app.auth_flow import AuthFlow
-from upload_mp4_to_youtube import upload_video
+from upload_mp4_to_youtube import (
+    append_upload_history,
+    build_history_record,
+    upload_video,
+)
 
 
 @dataclass
@@ -18,6 +22,7 @@ class UploadConfig:
     playlist: str | None = None
     client_secrets: str | None = None
     credentials_file: str | None = None
+    history_file: str | None = None
 
 
 class UploadWorker(QThread):
@@ -93,6 +98,11 @@ class UploadWorker(QThread):
                 else:
                     self.log.emit(f"上傳失敗: {result.get('error')}")
                     failed.append(result)
+                if cfg.history_file is not None:
+                    append_upload_history(
+                        cfg.history_file,
+                        [build_history_record(result)],
+                    )
                 if self._cancel.is_set():
                     break
             if self._cancel.is_set():
