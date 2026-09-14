@@ -2,6 +2,7 @@ from dateutil.relativedelta import relativedelta
 from datetime import timedelta
 import json
 import logging
+import tempfile
 from pathlib import Path
 from datetime import datetime, tzinfo
 from threading import Event
@@ -57,7 +58,7 @@ class VideoProcessor:
         return list(
             sorted(
                 [
-                    dir_.as_posix()
+                    dir_.resolve().as_posix()
                     for dir_ in dir.iterdir()
                     if dir_.name[0] != '.'
                 ]
@@ -123,16 +124,16 @@ class VideoProcessor:
     def concat(self, cancel_event: Event | None = None) -> list:
         import time as _time
         video_list = self.find_continous_video()
-        try:
-            dst = Path(self._dst_video_dir)
-            dst.mkdir(parents=True, exist_ok=True)
+        dst = Path(self._dst_video_dir)
+        dst.mkdir(parents=True, exist_ok=True)
 
-            results = []
-            video_names = []
+        results = []
+        video_names = []
+        with tempfile.TemporaryDirectory() as tmpdir:
             for i, v in enumerate(video_list):
                 if cancel_event is not None and cancel_event.is_set():
                     break
-                videolist = Path(f"videolist{i}.txt")
+                videolist = Path(tmpdir) / f"videolist{i}.txt"
                 with open(videolist, "w") as f:
                     f.writelines(v)
 
@@ -156,17 +157,14 @@ class VideoProcessor:
                 stdout, stderr = proc.communicate()
                 results.append((proc, stdout, stderr))
 
-            for p, out, err in results:
-                if p.returncode != 0:
-                    print("處理失敗:", err)
-                    return []
-                else:
-                    print("成功:", out)
+        for p, out, err in results:
+            if p.returncode != 0:
+                print("處理失敗:", err)
+                return []
+            else:
+                print("成功:", out)
 
-            return video_names
-        finally:
-            for i, v in enumerate(video_list):
-                Path(f"videolist{i}.txt").unlink(missing_ok=True)
+        return video_names
 
     def upload_to_youtube(self, video_names: list):
         results = []

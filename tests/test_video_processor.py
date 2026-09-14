@@ -1,4 +1,6 @@
+import os
 from datetime import datetime, timedelta
+from pathlib import Path
 import threading
 import pytz
 import pytest
@@ -151,3 +153,40 @@ def test_concat_cancel_kills_and_drains(tmp_path, monkeypatch):
     assert len(instances) == 1  # second segment never started
     assert instances[0].killed
     assert instances[0].communicated
+
+
+def test_concat_works_with_read_only_cwd(tmp_path, monkeypatch):
+    proc = make_processor(tmp_path, ["20260825000000_1.ts"])
+    ro_dir = tmp_path / "ro"
+    ro_dir.mkdir()
+    monkeypatch.chdir(ro_dir)
+    monkeypatch.setattr("e3vvid.video_processor.Popen", _FakePopen)
+    try:
+        os.chmod(ro_dir, 0o500)
+        names = proc.concat()
+    finally:
+        os.chmod(ro_dir, 0o700)
+    assert names == ["2026_08_25T00:00:00.mp4"]
+    assert list(ro_dir.glob("videolist*.txt")) == []
+
+
+def test_concat_videolist_is_outside_cwd_with_abs_paths(tmp_path, monkeypatch):
+    captured = {}
+
+    class CapturingPopen(_FakePopen):
+        def __init__(self, cmd, stdout=None, stderr=None, text=False):
+            super().__init__(cmd, stdout, stderr, text)
+            captured["videolist"] = Path(cmd[cmd.index("-i") + 1])
+
+    proc = make_processor(tmp_path, ["20260825000000_1.ts"])
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("e3vvid.video_processor.Popen", CapturingPopen)
+    proc.concat()
+
+    videolist = captured["videolist"]
+    assert not videolist.is_relative_to(Path.cwd().resolve())
+    assert videolist.exists() is False  # cleaned up after concat
+    content_lines = (
+        proc.get_videos(str(Path(tmp_path) / "src"))
+    )
+    assert all(Path(p).is_absolute() for p in content_lines)
