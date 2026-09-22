@@ -109,7 +109,7 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
                 credentials_file=cfg.credentials_file,
             )
             upload_results.append(result)
-            if cfg.history_file:
+            if cfg.history_file is not None:
                 try:
                     append_upload_history(
                         cfg.history_file,

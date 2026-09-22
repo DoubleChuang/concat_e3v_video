@@ -4,6 +4,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 from PySide6.QtCore import QSettings
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication
 
 from app.settings import AppSettings
@@ -62,5 +63,28 @@ def test_close_quits_app(qapp, monkeypatch, tmp_path):
     home = _make_home(tmp_path, monkeypatch)
     quit_called = []
     monkeypatch.setattr(qapp, "quit", lambda: quit_called.append(1))
+    home.close()
+    assert quit_called == [1]
+
+
+def test_close_blocked_when_quit_guard_busy(qapp, monkeypatch, tmp_path):
+    home = _make_home(tmp_path, monkeypatch)
+    quit_called = []
+    monkeypatch.setattr(qapp, "quit", lambda: quit_called.append(1))
+    monkeypatch.setattr(
+        "app.ui.home_window.QMessageBox.warning", lambda *a, **kw: None
+    )
+    home.quit_guard = lambda: True
+    event = QCloseEvent()
+    home.closeEvent(event)
+    assert quit_called == []
+    assert not event.isAccepted()
+
+
+def test_close_quits_when_guard_clear(qapp, monkeypatch, tmp_path):
+    home = _make_home(tmp_path, monkeypatch)
+    quit_called = []
+    monkeypatch.setattr(qapp, "quit", lambda: quit_called.append(1))
+    home.quit_guard = lambda: False
     home.close()
     assert quit_called == [1]

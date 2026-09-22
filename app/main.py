@@ -11,6 +11,7 @@ from app.ui.upload_window import UploadWindow
 
 
 def _connect(home: HomeWindow, main_window: MainWindow) -> None:
+    home.quit_guard = main_window._busy
     home.e3v_requested.connect(lambda: (home.hide(), main_window.show()))
     home.upload_requested.connect(lambda: UploadWindow(home).exec())
     main_window.back_requested.connect(lambda: (main_window.hide(), home.show()))

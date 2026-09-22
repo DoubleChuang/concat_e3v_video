@@ -3,7 +3,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QApplication, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QVBoxLayout, QWidget,
+    QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget,
 )
 
 from app.settings import AppSettings
@@ -19,6 +19,7 @@ class HomeWindow(QWidget):
         self.setWindowTitle("concat-e3v")
         self.resize(480, 320)
         self._settings = AppSettings()
+        self.quit_guard = None
 
         layout = QVBoxLayout(self)
 
@@ -77,5 +78,9 @@ class HomeWindow(QWidget):
         )
 
     def closeEvent(self, event):
+        if self.quit_guard is not None and self.quit_guard():
+            QMessageBox.warning(self, "處理中", "請先取消或等待處理完成")
+            event.ignore()
+            return
         QApplication.instance().quit()
         super().closeEvent(event)

@@ -58,6 +58,7 @@ def test_upload_button_opens_upload_dialog(qapp, monkeypatch, tmp_path):
             opened.append(parent)
 
         def exec(self):
+            opened.append("exec")
             return 0
 
     monkeypatch.setattr(app_main, "UploadWindow", FakeDialog)
@@ -66,7 +67,7 @@ def test_upload_button_opens_upload_dialog(qapp, monkeypatch, tmp_path):
     app_main._connect(home, main)
     home.show()
     home.upload_requested.emit()
-    assert opened == [home]
+    assert opened == [home, "exec"]
 
 
 def test_back_requested_returns_to_home(qapp, monkeypatch, tmp_path):
@@ -78,3 +79,11 @@ def test_back_requested_returns_to_home(qapp, monkeypatch, tmp_path):
     main.back_requested.emit()
     assert home.isVisible()
     assert not main.isVisible()
+
+
+def test_connect_wires_quit_guard(qapp, monkeypatch, tmp_path):
+    home = _make_home(tmp_path, monkeypatch)
+    main = _make_main(tmp_path, monkeypatch)
+    app_main._connect(home, main)
+    assert home.quit_guard is not None
+    assert home.quit_guard() is False
