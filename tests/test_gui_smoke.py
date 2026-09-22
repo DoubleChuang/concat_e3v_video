@@ -67,3 +67,75 @@ def test_build_cfg_attaches_taipei_tz_without_shifting(qapp, monkeypatch, tmp_pa
     assert cfg.end_time.hour == 1
     assert cfg.start_time.tzinfo is not None
     assert cfg.start_time.utcoffset() == timedelta(hours=8)
+
+
+from PySide6.QtGui import QCloseEvent
+from upload_mp4_to_youtube import UPLOAD_HISTORY_DEFAULT
+
+
+class _Signal:
+    def connect(self, *a, **kw):
+        pass
+
+
+class FakeBusyWorker:
+    def __init__(self, cfg, parent=None):
+        self.log = _Signal()
+        self.finished = _Signal()
+        self.auth_required = _Signal()
+        self.auth_code_required = _Signal()
+
+    def start(self):
+        pass
+
+    def isRunning(self):
+        return True
+
+
+def test_back_button_disabled_while_busy(qapp, monkeypatch, tmp_path):
+    window = _make_window(tmp_path, monkeypatch)
+    window.src_edit.setText(str(tmp_path))
+    window.dst_edit.setText(str(tmp_path / "out"))
+    monkeypatch.setattr(
+        "app.ui.main_window.PipelineWorker", FakeBusyWorker
+    )
+    monkeypatch.setattr(
+        "app.ui.main_window.QMessageBox.information", lambda *a, **kw: None
+    )
+    window._on_start()
+    assert not window.back_btn.isEnabled()
+    window._on_finished({"status": "done", "upload_results": []})
+    assert window.back_btn.isEnabled()
+
+
+def test_close_blocked_while_busy(qapp, monkeypatch, tmp_path):
+    window = _make_window(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        "app.ui.main_window.QMessageBox.warning", lambda *a, **kw: None
+    )
+    window._worker = FakeBusyWorker(None)
+    event = QCloseEvent()
+    window.closeEvent(event)
+    assert not event.isAccepted()
+
+
+def test_close_idle_returns_home(qapp, monkeypatch, tmp_path):
+    QApplication.setQuitOnLastWindowClosed(False)
+    window = _make_window(tmp_path, monkeypatch)
+    backs = []
+    window.back_requested.connect(lambda: backs.append(1))
+    window.close()
+    assert backs == [1]
+
+
+def test_build_cfg_history_file_from_settings(qapp, monkeypatch, tmp_path):
+    window = _make_window(tmp_path, monkeypatch)
+    window._settings.set_value("upload_history_file", str(tmp_path / "h.json"))
+    cfg = window._build_cfg()
+    assert cfg.history_file == str(tmp_path / "h.json")
+
+
+def test_build_cfg_history_file_default(qapp, monkeypatch, tmp_path):
+    window = _make_window(tmp_path, monkeypatch)
+    cfg = window._build_cfg()
+    assert cfg.history_file == UPLOAD_HISTORY_DEFAULT.as_posix()

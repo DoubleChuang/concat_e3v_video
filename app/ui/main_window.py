@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytz
-from PySide6.QtCore import Qt, QDateTime, QTimeZone
+from PySide6.QtCore import Qt, QDateTime, QTimeZone, Signal
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDateTimeEdit, QFileDialog, QFormLayout,
     QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMainWindow,
@@ -11,12 +11,14 @@ from PySide6.QtWidgets import (
 
 from app.ffmpeg import resolve_ffmpeg
 from app.pipeline import PipelineConfig
-from app.settings import AppSettings
+from app.settings import AppSettings, get_upload_history_file
 from app.ui.auth_dialog import AuthDialog
 from app.worker import PipelineWorker
 
 
 class MainWindow(QMainWindow):
+    back_requested = Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("concat-e3v")
@@ -109,9 +111,9 @@ class MainWindow(QMainWindow):
         self.log_edit.setReadOnly(True)
         layout.addWidget(self.log_edit, 1)
 
-        self.upload_btn = QPushButton("單獨上傳影片...")
-        self.upload_btn.clicked.connect(self._open_upload_window)
-        layout.addWidget(self.upload_btn)
+        self.back_btn = QPushButton("回首頁")
+        self.back_btn.clicked.connect(lambda: self.back_requested.emit())
+        layout.addWidget(self.back_btn)
 
         self.start_btn = QPushButton("開始處理")
         self.start_btn.clicked.connect(self._on_start)
@@ -216,6 +218,7 @@ class MainWindow(QMainWindow):
             upload_tags=self.upload_tags.text().strip() or None,
             upload_playlist=self.upload_playlist.text().strip() or None,
             client_secrets=self.cs_edit.text().strip() or None,
+            history_file=get_upload_history_file(self._settings),
         )
 
     def _on_start(self):
@@ -237,6 +240,7 @@ class MainWindow(QMainWindow):
         self._worker.auth_required.connect(self._on_auth_required)
         self._worker.auth_code_required.connect(self._on_auth_code_required)
         self.start_btn.setText("停止")
+        self.back_btn.setEnabled(False)
         self._worker.start()
 
     def _on_auth_required(self, message: str):
@@ -259,6 +263,7 @@ class MainWindow(QMainWindow):
 
     def _on_finished(self, result: dict):
         self.start_btn.setText("開始處理")
+        self.back_btn.setEnabled(True)
         status = result.get("status")
         if status == "done":
             self.log_edit.appendPlainText("處理完成")
@@ -275,7 +280,13 @@ class MainWindow(QMainWindow):
             self.log_edit.appendPlainText(f"處理失敗: {result.get('reason')}")
             QMessageBox.critical(self, "失敗", str(result.get("reason")))
 
-    def _open_upload_window(self):
-        from app.ui.upload_window import UploadWindow
+    def _busy(self) -> bool:
+        return self._worker is not None and self._worker.isRunning()
 
-        UploadWindow(self).exec()
+    def closeEvent(self, event):
+        if self._busy():
+            QMessageBox.warning(self, "處理中", "請先取消或等待處理完成")
+            event.ignore()
+            return
+        self.back_requested.emit()
+        super().closeEvent(event)
