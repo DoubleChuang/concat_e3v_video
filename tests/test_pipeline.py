@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 import threading
 import pytz
 from app.pipeline import PipelineConfig, run_pipeline
@@ -186,3 +187,89 @@ def test_pipeline_aborts_when_cancelled_during_upload(monkeypatch, tmp_path):
     result = run_pipeline(cfg)
     assert result["status"] == "aborted"
     assert result["reason"] == "cancelled"
+
+
+def test_pipeline_writes_history_records(monkeypatch, tmp_path):
+    class FakeProcessor:
+        def __init__(self, *a, **kw):
+            pass
+
+        def concat(self, cancel_event=None):
+            return ["out.mp4", "out2.mp4"]
+
+    monkeypatch.setattr("app.pipeline.VideoProcessor", FakeProcessor)
+    results = iter(
+        [
+            {"file": "/tmp/out.mp4", "exit_code": 0, "video_id": "v1"},
+            {"file": "/tmp/out2.mp4", "exit_code": 1, "error": "boom"},
+        ]
+    )
+    monkeypatch.setattr(
+        "app.pipeline.upload_video", lambda *a, **kw: next(results)
+    )
+    history = tmp_path / "h.json"
+    cfg = make_cfg(
+        tmp_path,
+        upload_enabled=True,
+        auth_callback=lambda: True,
+        history_file=str(history),
+    )
+    run_pipeline(cfg)
+    data = json.loads(history.read_text(encoding="utf-8"))
+    assert [u["status"] for u in data["uploads"]] == ["success", "failed"]
+    assert data["uploads"][0]["youtube_url"] == "https://youtu.be/v1"
+    assert data["uploads"][1]["error"] == "boom"
+
+
+def test_pipeline_tolerates_history_write_error(monkeypatch, tmp_path):
+    class FakeProcessor:
+        def __init__(self, *a, **kw):
+            pass
+
+        def concat(self, cancel_event=None):
+            return ["out.mp4"]
+
+    monkeypatch.setattr("app.pipeline.VideoProcessor", FakeProcessor)
+    monkeypatch.setattr(
+        "app.pipeline.upload_video",
+        lambda *a, **kw: {"file": "/tmp/out.mp4", "exit_code": 0, "video_id": "v1"},
+    )
+
+    def boom(*a, **kw):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("app.pipeline.append_upload_history", boom)
+    logs = []
+    cfg = make_cfg(
+        tmp_path,
+        upload_enabled=True,
+        auth_callback=lambda: True,
+        history_file=str(tmp_path / "h.json"),
+        log=logs.append,
+    )
+    result = run_pipeline(cfg)
+    assert result["status"] == "done"
+    assert any("無法寫入上傳紀錄" in line for line in logs)
+
+
+def test_pipeline_skips_history_without_file(monkeypatch, tmp_path):
+    calls = []
+
+    class FakeProcessor:
+        def __init__(self, *a, **kw):
+            pass
+
+        def concat(self, cancel_event=None):
+            return ["out.mp4"]
+
+    monkeypatch.setattr("app.pipeline.VideoProcessor", FakeProcessor)
+    monkeypatch.setattr(
+        "app.pipeline.upload_video",
+        lambda *a, **kw: {"file": "/tmp/out.mp4", "exit_code": 0, "video_id": "v1"},
+    )
+    monkeypatch.setattr(
+        "app.pipeline.append_upload_history", lambda *a, **kw: calls.append(1)
+    )
+    cfg = make_cfg(tmp_path, upload_enabled=True, auth_callback=lambda: True)
+    run_pipeline(cfg)
+    assert calls == []

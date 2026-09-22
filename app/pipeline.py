@@ -5,7 +5,11 @@ from threading import Event
 from typing import Callable
 
 from e3vvid.video_processor import VideoProcessor
-from upload_mp4_to_youtube import upload_video
+from upload_mp4_to_youtube import (
+    append_upload_history,
+    build_history_record,
+    upload_video,
+)
 
 
 def _noop(msg: str) -> None:
@@ -29,6 +33,7 @@ class PipelineConfig:
     upload_playlist: str | None = None
     client_secrets: str | None = None
     credentials_file: str | None = None
+    history_file: str | None = None
     cancel_event: Event | None = None
     auth_callback: Callable[[], bool] | None = None
     log: Callable[[str], None] = field(default=_noop)
@@ -104,6 +109,14 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
                 credentials_file=cfg.credentials_file,
             )
             upload_results.append(result)
+            if cfg.history_file:
+                try:
+                    append_upload_history(
+                        cfg.history_file,
+                        [build_history_record(result)],
+                    )
+                except OSError as exc:
+                    cfg.log(f"無法寫入上傳紀錄: {exc}")
             if result.get("exit_code") == 0:
                 cfg.log(f"上傳成功: {result.get('video_id')}")
             else:
