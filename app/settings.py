@@ -10,3 +10,9 @@ class AppSettings(QSettings):
 
     def value(self, key: str, default=None):
         return super().value(key, default)
+
+
+def get_upload_history_file(s: AppSettings) -> str:
+    from upload_mp4_to_youtube import UPLOAD_HISTORY_DEFAULT
+
+    return str(s.value("upload_history_file", "") or UPLOAD_HISTORY_DEFAULT.as_posix())
