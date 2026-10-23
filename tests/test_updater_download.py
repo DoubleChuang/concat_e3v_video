@@ -26,7 +26,7 @@ class _Response(io.BytesIO):
 
 
 def _opener(data: bytes = DATA, headers: dict | None = None):
-    def opener(request, timeout=None):
+    def opener(request, timeout=None, context=None):
         return _Response(data, headers)
 
     return opener
@@ -75,7 +75,7 @@ def test_download_rejects_size_mismatch(tmp_path):
 
 
 def test_download_maps_http_error(tmp_path):
-    def opener(request, timeout=None):
+    def opener(request, timeout=None, context=None):
         raise urllib.error.HTTPError(URL, 500, "boom", {}, None)
 
     with pytest.raises(DownloadError):
@@ -85,7 +85,7 @@ def test_download_maps_http_error(tmp_path):
 def test_download_retries_transient_failure(tmp_path):
     calls = {"n": 0}
 
-    def opener(request, timeout=None):
+    def opener(request, timeout=None, context=None):
         calls["n"] += 1
         if calls["n"] == 1:
             raise urllib.error.URLError("connection reset")
@@ -97,8 +97,40 @@ def test_download_retries_transient_failure(tmp_path):
 
 
 def test_download_gives_up_after_attempts(tmp_path):
-    def opener(request, timeout=None):
+    def opener(request, timeout=None, context=None):
         raise urllib.error.URLError("down")
 
     with pytest.raises(DownloadError):
         HttpDownloader(attempts=2, opener=opener).download(_asset(), tmp_path / "a")
+
+
+def test_download_passes_its_ssl_context_to_urlopen(tmp_path):
+    seen = {}
+    sentinel = object()
+
+    def opener(request, timeout=None, context=None):
+        seen["context"] = context
+        return _Response(DATA)
+
+    HttpDownloader(opener=opener, ssl_context=sentinel).download(
+        _asset(), tmp_path / "a"
+    )
+    assert seen["context"] is sentinel
+
+
+def test_download_does_not_retry_certificate_errors(tmp_path):
+    import ssl
+
+    calls = {"n": 0}
+
+    def opener(request, timeout=None, context=None):
+        calls["n"] += 1
+        raise urllib.error.URLError(
+            ssl.SSLCertVerificationError(1, "certificate verify failed")
+        )
+
+    with pytest.raises(DownloadError) as excinfo:
+        HttpDownloader(attempts=3, opener=opener).download(_asset(), tmp_path / "a")
+    assert calls["n"] == 1
+    assert "TLS 憑證" in str(excinfo.value)
+    assert not (tmp_path / "a").exists()

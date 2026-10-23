@@ -7,12 +7,14 @@ JSON → domain 的轉換寫成純函式 :func:`parse_release`，方便離線測
 from __future__ import annotations
 
 import json
+import ssl
 import urllib.error
 import urllib.request
 from typing import Any, Callable
 
 from app.updater.errors import ReleaseLookupError
 from app.updater.models import Asset, Release
+from app.updater.tls import CERT_ERROR_HINT, create_ssl_context, is_certificate_error
 from app.updater.version import Version
 
 API_BASE = "https://api.github.com"
@@ -67,11 +69,13 @@ class GitHubReleaseSource:
         api_base: str = API_BASE,
         timeout: float = 15.0,
         opener: Opener | None = None,
+        ssl_context: ssl.SSLContext | None = None,
     ) -> None:
         self._repository = repository
         self._api_base = api_base.rstrip("/")
         self._timeout = timeout
         self._opener = opener or urllib.request.urlopen
+        self._ssl_context = ssl_context or create_ssl_context()
 
     def latest(self) -> Release:
         url = f"{self._api_base}/repos/{self._repository}/releases/latest"
@@ -83,7 +87,9 @@ class GitHubReleaseSource:
             },
         )
         try:
-            with self._opener(request, timeout=self._timeout) as response:
+            with self._opener(
+                request, timeout=self._timeout, context=self._ssl_context
+            ) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             if exc.code == 404:
@@ -94,6 +100,8 @@ class GitHubReleaseSource:
                 ) from exc
             raise ReleaseLookupError(f"GitHub API 回應 {exc.code}") from exc
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            if is_certificate_error(exc):
+                raise ReleaseLookupError(CERT_ERROR_HINT) from exc
             raise ReleaseLookupError(f"無法連線到 GitHub：{exc}") from exc
         except json.JSONDecodeError as exc:
             raise ReleaseLookupError("GitHub API 回應格式不正確") from exc
