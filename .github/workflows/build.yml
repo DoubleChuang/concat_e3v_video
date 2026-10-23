@@ -47,6 +47,11 @@ jobs:
         env:
           PYTHON: python
 
+      # 這個容器沒有任何系統 CA，正是使用者端會遇到的條件。
+      # 若 certifi 沒被包進去，這裡就會 CERTIFICATE_VERIFY_FAILED 而失敗。
+      - name: Smoke test updater TLS inside the bundle
+        run: ./dist/concat-e3v --check-updates
+
       - name: Rename artifact
         run: mv dist/concat-e3v dist/concat-e3v-linux-x86_64
 
