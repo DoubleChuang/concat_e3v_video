@@ -141,15 +141,25 @@ rm -rf {staging_q}
 """
 
 
+def _image_name(target: Path) -> str:
+    """取執行檔檔名；測試會在 POSIX 上傳入 Windows 路徑，所以兩種分隔符都要處理。"""
+    return str(target).replace("\\", "/").rsplit("/", 1)[-1]
+
+
 def build_windows_update_script(pid: int, target: Path, new_file: Path) -> str:
-    """等舊行程結束 → 覆蓋 exe → 重開 → 清掉暫存資料夾。"""
+    """等舊行程結束 → 覆蓋 exe → 重開 → 清掉暫存資料夾。
+
+    等行程的判斷同時比對 PID 與檔名：只比 PID 會誤判（例如 123 對上 5123），
+    太早搬檔會因為 exe 還被鎖住而失敗。
+    """
+    image_name = _image_name(target)
     return f"""@echo off
 setlocal
 set "TARGET={target}"
 set "NEW={new_file}"
 
 :wait
-tasklist /FI "PID eq {int(pid)}" 2>NUL | find "{int(pid)}" >NUL
+tasklist /FI "PID eq {int(pid)}" /NH 2>NUL | find /I "{image_name}" >NUL
 if not errorlevel 1 (
   timeout /t 2 /nobreak >NUL
   goto wait

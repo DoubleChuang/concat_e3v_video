@@ -162,3 +162,9 @@ class UpdatePresenter(QObject):
     def _reveal(self, directory: Path | None) -> None:
         if directory is not None:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(directory)))
+
+    def shutdown(self, timeout_ms: int = 3000) -> None:
+        """離開前等背景 worker 收尾，避免 QThread 在解構時還在跑。"""
+        for worker in (self._check_worker, self._apply_worker):
+            if worker is not None and worker.isRunning():
+                worker.wait(timeout_ms)

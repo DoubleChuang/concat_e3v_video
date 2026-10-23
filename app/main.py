@@ -41,6 +41,7 @@ def main() -> int:
     home = HomeWindow(updater=presenter)
     main_window = MainWindow(updater=presenter)
     _connect(home, main_window, presenter)
+    app.aboutToQuit.connect(presenter.shutdown)
     home.show()
 
     if auto_check_enabled(AppSettings()):

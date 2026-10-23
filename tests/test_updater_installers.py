@@ -88,6 +88,8 @@ def test_windows_script_waits_for_exit_then_replaces_and_starts():
         new_file=Path(r"C:\Temp\upd\concat-e3v.exe"),
     )
     assert 'PID eq 4321' in script
+    assert "/NH" in script
+    assert 'find /I "concat-e3v.exe"' in script
     assert "move /y" in script
     assert 'start ""' in script
     assert r"C:\Apps\concat-e3v.exe" in script
