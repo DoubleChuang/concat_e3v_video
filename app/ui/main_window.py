@@ -13,18 +13,21 @@ from app.ffmpeg import resolve_ffmpeg
 from app.pipeline import PipelineConfig
 from app.settings import AppSettings, get_upload_history_file
 from app.ui.auth_dialog import AuthDialog
+from app.ui.update_menu import attach_help_menu
+from app.ui.update_presenter import UpdatePresenter, build_default_presenter
 from app.worker import PipelineWorker
 
 
 class MainWindow(QMainWindow):
     back_requested = Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, updater: UpdatePresenter | None = None):
         super().__init__(parent)
         self.setWindowTitle("concat-e3v")
         self.resize(640, 640)
 
         self._settings = AppSettings()
+        self._updater = updater or build_default_presenter(self)
         self._ffmpeg_bin = resolve_ffmpeg()
         self._worker: PipelineWorker | None = None
 
@@ -118,6 +121,8 @@ class MainWindow(QMainWindow):
         self.start_btn = QPushButton("開始處理")
         self.start_btn.clicked.connect(self._on_start)
         layout.addWidget(self.start_btn)
+
+        self.help_menu = attach_help_menu(self, self._updater, self._settings)
 
         self._load_settings()
 
