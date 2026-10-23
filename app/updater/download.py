@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import hashlib
+import ssl
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -15,6 +16,7 @@ from typing import Any, Callable
 from app.updater.errors import DownloadError
 from app.updater.models import Asset
 from app.updater.ports import ProgressCallback
+from app.updater.tls import CERT_ERROR_HINT, create_ssl_context, is_certificate_error
 
 Opener = Callable[..., Any]
 _CHUNK_SIZE = 1 << 20  # 1 MiB
@@ -28,12 +30,14 @@ class HttpDownloader:
         attempts: int = 2,
         opener: Opener | None = None,
         user_agent: str = "concat-e3v-updater",
+        ssl_context: ssl.SSLContext | None = None,
     ) -> None:
         self._timeout = timeout
         self._chunk_size = chunk_size
         self._attempts = max(1, attempts)
         self._opener = opener or urllib.request.urlopen
         self._user_agent = user_agent
+        self._ssl_context = ssl_context or create_ssl_context()
 
     def download(
         self,
@@ -73,7 +77,9 @@ class HttpDownloader:
         digest = hashlib.sha256()
         received = 0
         try:
-            with self._opener(request, timeout=self._timeout) as response:
+            with self._opener(
+                request, timeout=self._timeout, context=self._ssl_context
+            ) as response:
                 total = int(response.headers.get("Content-Length") or asset.size or 0)
                 with open(part, "wb") as handle:
                     while True:
@@ -87,7 +93,10 @@ class HttpDownloader:
                             on_progress(received, total)
         except urllib.error.HTTPError as exc:
             raise DownloadError(f"下載失敗（HTTP {exc.code}）") from exc
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        except (urllib.error.URLError, ssl.SSLError, TimeoutError, OSError) as exc:
+            # 憑證問題重試幾次都一樣，直接給可行動的訊息
+            if is_certificate_error(exc):
+                raise DownloadError(CERT_ERROR_HINT) from exc
             raise _RetryableDownloadError(f"下載中斷：{exc}") from exc
 
         if on_progress is not None:

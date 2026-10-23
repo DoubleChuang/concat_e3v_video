@@ -39,7 +39,7 @@ class _Response(io.BytesIO):
 
 
 def _opener_for(payload: dict):
-    def opener(request, timeout=None):
+    def opener(request, timeout=None, context=None):
         return _Response(json.dumps(payload).encode("utf-8"))
 
     return opener
@@ -83,7 +83,7 @@ def test_source_returns_release():
 
 
 def test_source_maps_404_to_lookup_error():
-    def opener(request, timeout=None):
+    def opener(request, timeout=None, context=None):
         raise urllib.error.HTTPError("url", 404, "Not Found", {}, None)
 
     with pytest.raises(ReleaseLookupError):
@@ -91,7 +91,7 @@ def test_source_maps_404_to_lookup_error():
 
 
 def test_source_maps_offline_to_lookup_error():
-    def opener(request, timeout=None):
+    def opener(request, timeout=None, context=None):
         raise urllib.error.URLError("no network")
 
     with pytest.raises(ReleaseLookupError):
@@ -101,7 +101,7 @@ def test_source_maps_offline_to_lookup_error():
 def test_source_sends_required_headers():
     seen = {}
 
-    def opener(request, timeout=None):
+    def opener(request, timeout=None, context=None):
         seen["url"] = request.full_url
         seen["ua"] = request.get_header("User-agent")
         return _Response(json.dumps(PAYLOAD).encode("utf-8"))
@@ -109,3 +109,28 @@ def test_source_sends_required_headers():
     GitHubReleaseSource("owner/repo", opener=opener).latest()
     assert seen["url"].endswith("/repos/owner/repo/releases/latest")
     assert seen["ua"]
+
+
+def test_source_passes_its_ssl_context_to_urlopen():
+    seen = {}
+    sentinel = object()
+
+    def opener(request, timeout=None, context=None):
+        seen["context"] = context
+        return _Response(json.dumps(PAYLOAD).encode("utf-8"))
+
+    GitHubReleaseSource(opener=opener, ssl_context=sentinel).latest()
+    assert seen["context"] is sentinel
+
+
+def test_source_reports_certificate_failure_with_actionable_message():
+    import ssl
+
+    def opener(request, timeout=None, context=None):
+        raise urllib.error.URLError(
+            ssl.SSLCertVerificationError(1, "certificate verify failed")
+        )
+
+    with pytest.raises(ReleaseLookupError) as excinfo:
+        GitHubReleaseSource(opener=opener).latest()
+    assert "TLS 憑證" in str(excinfo.value)

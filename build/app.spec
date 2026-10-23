@@ -14,6 +14,7 @@ if not os.path.exists(ffmpeg):
 
 # Vendored youtube-upload is bundled as data (loaded via sys.path at runtime),
 # so PyInstaller cannot see its imports. Collect the google stack explicitly.
+# certifi 一定要帶：打包後的 ssl 找不到系統 CA，HTTPS 會 CERTIFICATE_VERIFY_FAILED。
 extra_datas, extra_binaries, extra_hiddenimports = [], [], []
 for pkg in (
     "googleapiclient",
@@ -22,6 +23,7 @@ for pkg in (
     "httplib2",
     "google_auth_httplib2",
     "google.auth",
+    "certifi",
 ):
     d, b, h = collect_all(pkg)
     extra_datas += d

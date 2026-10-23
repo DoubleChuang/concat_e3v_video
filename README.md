@@ -87,6 +87,18 @@ GUI 上方「說明」選單：
 
 下載後會用 release 標示的 sha256 驗證，再依平台替換執行檔；替換完成會自動重新啟動。
 
+想不開視窗確認連線與憑證是否正常（排查用）：
+
+```bash
+# Linux / 直接執行
+./concat-e3v --check-updates
+
+# macOS
+/Applications/concat-e3v.app/Contents/MacOS/concat-e3v --check-updates
+```
+
+會印出目前版本、最新版本與結果，連線或憑證有問題時會直接顯示原因。
+
 | 平台 | 自動更新方式 | 備註 |
 |---|---|---|
 | Windows | 下載新 `.exe`，寫一個 `.bat` 等程式結束後覆蓋並重開 | 執行中的 exe 被鎖住，必須靠外部腳本 |
@@ -139,6 +151,7 @@ Enter verification code: YOUR_VERIFICATION_CODE
 | 合併後沒聲音或前 N 秒沒靜音 | 確認「靜音前 N 秒」的秒數設定與勾選狀態 |
 | 時間選錯範圍 | 時間為台北時區；檢查開始 < 結束 |
 | 上傳失敗 / 跳出授權視窗 | 憑證過期或無權限，於視窗內重新授權即可 |
+| 檢查更新顯示 `CERTIFICATE_VERIFY_FAILED` | 0.0.8 以前版本的打包產物沒有帶 CA 憑證包；換成 0.0.9 之後的版本即可（此後會內建 certifi） |
 | `No videos in time range` | 範圍內沒有符合 `YYYYMMDDHHMMSS_*.TS` 命名的檔案 |
 
 ## 附錄：移除緊急鎖檔（EMR）
