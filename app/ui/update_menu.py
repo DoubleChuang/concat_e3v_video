@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMainWindow, QMenuBar, QMessageBox, QWidget
 
 from app.settings import AppSettings, get_bool
@@ -20,9 +21,9 @@ AUTO_CHECK_KEY = "update_auto_check"
 @dataclass
 class HelpMenu:
     bar: QMenuBar
-    check_action: object
-    auto_check_action: object
-    about_action: object
+    check_action: QAction
+    auto_check_action: QAction
+    about_action: QAction
 
 
 def attach_help_menu(

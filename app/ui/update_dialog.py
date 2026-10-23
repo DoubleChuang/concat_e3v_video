@@ -28,7 +28,8 @@ class UpdateAvailableDialog(QDialog):
         parent=None,
     ) -> None:
         super().__init__(parent)
-        assert result.release is not None
+        if result.release is None:
+            raise ValueError("UpdateAvailableDialog 需要帶 release 的 CheckResult")
         self.choice = "later"
         self.setWindowTitle("發現新版本")
         self.resize(520, 380)
@@ -56,17 +57,18 @@ class UpdateAvailableDialog(QDialog):
         layout.addWidget(notes, 1)
 
         buttons = QDialogButtonBox(self)
+        self._can_self_update = can_self_update
         self.update_btn = buttons.addButton(
             "下載並更新" if can_self_update else "前往下載頁面",
             QDialogButtonBox.AcceptRole,
         )
         self.later_btn = buttons.addButton("稍後", QDialogButtonBox.RejectRole)
-        self.update_btn.clicked.connect(self._accept)
+        self.update_btn.clicked.connect(self._on_update_clicked)
         self.later_btn.clicked.connect(self.reject)
         layout.addWidget(buttons)
 
-    def _accept(self) -> None:
-        self.choice = "update" if self.update_btn.text() == "下載並更新" else "page"
+    def _on_update_clicked(self) -> None:
+        self.choice = "update" if self._can_self_update else "page"
         self.accept()
 
 
