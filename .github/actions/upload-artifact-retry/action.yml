@@ -1,0 +1,45 @@
+name: Upload artifact (retry once)
+description: >-
+  Wrapper around actions/upload-artifact that retries once. GitHub's artifact
+  service occasionally times out on CreateArtifact ("Failed to make request
+  after 5 attempts"), which is an infrastructure hiccup and not a build failure.
+
+inputs:
+  name:
+    description: Artifact name
+    required: true
+  path:
+    description: File or directory to upload
+    required: true
+  compression-level:
+    description: Zlib compression level (0-9)
+    required: false
+    default: "6"
+
+runs:
+  using: composite
+  steps:
+    - name: Upload (attempt 1)
+      id: attempt1
+      continue-on-error: true
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+        compression-level: ${{ inputs.compression-level }}
+        # 重跑 workflow 時同名 artifact 會已存在，先刪再傳
+        overwrite: true
+
+    - name: Wait before retry
+      if: steps.attempt1.outcome == 'failure'
+      shell: bash
+      run: sleep 20
+
+    - name: Upload (attempt 2)
+      if: steps.attempt1.outcome == 'failure'
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+        compression-level: ${{ inputs.compression-level }}
+        overwrite: true

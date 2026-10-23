@@ -6,14 +6,18 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-linux:
     name: linux-x86_64 (docker)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container: python:3.11-slim
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install curl, tar, binutils and GUI/XCB dependencies
         run: |
@@ -28,6 +32,16 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements-dev.txt
 
+      - name: Check tag matches app/version.py
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version="$(python -c 'import app.version as v; print(v.__version__)')"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} 與 app/version.py 的 v${version} 不一致"
+            exit 1
+          fi
+
       - name: Build (bundles static ffmpeg)
         run: ./build/build_linux.sh
         env:
@@ -37,7 +51,7 @@ jobs:
         run: mv dist/concat-e3v dist/concat-e3v-linux-x86_64
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/upload-artifact-retry
         with:
           name: concat-e3v-linux-x86_64
           path: dist/concat-e3v-linux-x86_64
@@ -45,12 +59,13 @@ jobs:
   build-macos-x86_64:
     name: macos-x86_64
     runs-on: macos-15-intel
+    timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -69,7 +84,7 @@ jobs:
         run: ditto -c -k --keepParent dist/concat-e3v.app dist/concat-e3v-macos-x86_64.app.zip
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/upload-artifact-retry
         with:
           name: concat-e3v-macos-x86_64
           path: dist/concat-e3v-macos-x86_64.app.zip
@@ -77,12 +92,13 @@ jobs:
   build-macos-arm64:
     name: macos-arm64
     runs-on: macos-14
+    timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -101,7 +117,7 @@ jobs:
         run: ditto -c -k --keepParent dist/concat-e3v.app dist/concat-e3v-macos-arm64.app.zip
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/upload-artifact-retry
         with:
           name: concat-e3v-macos-arm64
           path: dist/concat-e3v-macos-arm64.app.zip
@@ -109,12 +125,13 @@ jobs:
   build-windows:
     name: windows-x86_64
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -130,7 +147,7 @@ jobs:
         shell: cmd
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/upload-artifact-retry
         with:
           name: concat-e3v-windows
           path: dist/concat-e3v-windows.exe
@@ -140,15 +157,16 @@ jobs:
     needs: [build-linux, build-macos-x86_64, build-macos-arm64, build-windows]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/*
           generate_release_notes: true

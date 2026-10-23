@@ -1,9 +1,11 @@
 __pycache__/
 *.pyc
 .DS_Store
+._*
 .venv-build/
 dist/
 build/bin/
 build/app/
 *.log
 client_secret*.json
+session-ses_*.md
