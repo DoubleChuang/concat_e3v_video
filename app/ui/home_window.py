@@ -7,6 +7,8 @@ from PySide6.QtWidgets import (
 )
 
 from app.settings import AppSettings
+from app.ui.update_menu import attach_help_menu
+from app.ui.update_presenter import UpdatePresenter, build_default_presenter
 from upload_mp4_to_youtube import UPLOAD_HISTORY_DEFAULT
 
 
@@ -14,12 +16,13 @@ class HomeWindow(QWidget):
     e3v_requested = Signal()
     upload_requested = Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, updater: UpdatePresenter | None = None):
         super().__init__(parent)
         self.setWindowTitle("concat-e3v")
         self.resize(480, 320)
         self._settings = AppSettings()
         self.quit_guard = None
+        self._updater = updater or build_default_presenter(self)
 
         layout = QVBoxLayout(self)
 
@@ -55,6 +58,8 @@ class HomeWindow(QWidget):
         layout.addLayout(form)
 
         layout.addStretch()
+
+        self.help_menu = attach_help_menu(self, self._updater, self._settings)
 
         self._load_settings()
 

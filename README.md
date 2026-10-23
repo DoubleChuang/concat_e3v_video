@@ -7,6 +7,7 @@
 ## 功能
 
 - **GUI（跨平台）**：選擇目錄與時間範圍、合併成單一檔、靜音前 N 秒、上傳 YouTube（含憑證檢查與重新授權）
+- **檢查更新**：說明選單可手動檢查、也可啟動時自動檢查，Windows / Linux 可一鍵自動更新，macOS 會替換整個 `.app`
 - **CLI**：保留原有指令列介面（含 `--upload-to-youtube`）
 - **打包**：PyInstaller 單一執行檔、內建 ffmpeg，支援 macOS / Linux / Windows
 
@@ -75,6 +76,30 @@ python3 main.py /Volumes/Untitled/DCIM/Front Front 2023-07-20T00:00:00 2023-07-2
 
 > **未簽章注意**：產物僅做 ad-hoc 簽章（arm64 可正常執行），未經 Apple 公證。首次開啟 .app 若被 Gatekeeper 阻擋：
 > 在 Finder 對 `.app` 按右鍵 →「打開」；或終端機執行 `xattr -dr com.apple.quarantine concat-e3v.app`。
+
+## 檢查更新 / 自動更新
+
+GUI 上方「說明」選單：
+
+- **檢查更新…**：讀 GitHub Releases 的最新正式版，有新版就顯示更新說明與「下載並更新」
+- **啟動時自動檢查更新**：勾選狀態會記住；啟動 3 秒後在背景檢查，沒新版就安靜結束
+- **關於 concat-e3v**：顯示目前版本
+
+下載後會用 release 標示的 sha256 驗證，再依平台替換執行檔；替換完成會自動重新啟動。
+
+| 平台 | 自動更新方式 | 備註 |
+|---|---|---|
+| Windows | 下載新 `.exe`，寫一個 `.bat` 等程式結束後覆蓋並重開 | 執行中的 exe 被鎖住，必須靠外部腳本 |
+| Linux | 直接原子替換執行檔（`.old` 保留一份） | 若安裝在 `/usr/local/bin` 需寫入權限 |
+| macOS | 解壓新 `.app`，由 shell script 等程式結束後整包替換並重開 | 只換整個 bundle，不破壞 ad-hoc 簽章；若沒有寫入權限會退回「下載後手動拖入」 |
+
+> 以原始碼執行（`python app/main.py`）時不提供自動替換，只會顯示新版本資訊與下載頁面。
+
+### 發版流程
+
+1. 改 `app/version.py` 的 `__version__`（例如 `0.0.8`）
+2. commit 後打對應 tag：`git tag v0.0.8 && git push origin v0.0.8`
+3. CI 會先驗證 tag 與 `app/version.py` 一致，再建置四個平台並建立 Release
 
 ## 自行打包
 
