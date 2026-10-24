@@ -27,7 +27,7 @@ runs:
         name: ${{ inputs.name }}
         path: ${{ inputs.path }}
         compression-level: ${{ inputs.compression-level }}
-        # 重跑 workflow 時同名 artifact 會已存在，先刪再傳
+        # a workflow re-run finds an artifact with this name already present
         overwrite: true
 
     - name: Wait before retry

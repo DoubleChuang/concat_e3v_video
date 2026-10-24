@@ -1,8 +1,9 @@
-"""SemVer 版本號：解析、格式化與比較。
+"""SemVer parsing, formatting and comparison.
 
-只支援 GitHub release tag 會出現的樣式：``v0.0.8``、``0.0.8``、``1.2.3-rc.1``、
-``1.2.3+build.7``。比較規則遵循 semver 2.0.0：有 prerelease 的版本小於同號的正式版，
-prerelease 內以「數字段落視為數字、其餘視為字串」比較。
+Only the shapes that show up as GitHub release tags are supported: ``v0.0.8``,
+``0.0.8``, ``1.2.3-rc.1``, ``1.2.3+build.7``. Ordering follows semver 2.0.0: a
+prerelease sorts below the same release number, and prerelease identifiers are
+compared numerically when they are digits, lexically otherwise.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ _VERSION_RE = re.compile(
 @total_ordering
 @dataclass(frozen=True)
 class Version:
-    """不可變的版本號。建構子請用 :meth:`parse` 以避免格式錯誤。"""
+    """Immutable version number. Use :meth:`parse` instead of the constructor."""
 
     major: int
     minor: int
@@ -31,7 +32,7 @@ class Version:
     def parse(cls, text: str) -> "Version":
         match = _VERSION_RE.match(str(text).strip())
         if match is None:
-            raise ValueError(f"無法解析版本號: {text!r}")
+            raise ValueError(f"invalid version string: {text!r}")
         pre = match.group("pre")
         return cls(
             major=int(match.group("major")),
@@ -55,7 +56,7 @@ class Version:
             (0, int(part), "") if part.isdigit() else (1, 0, part)
             for part in self.prerelease
         )
-        # 正式版（沒有 prerelease）要比任何 prerelease 大
+        # A final release outranks any prerelease of the same number.
         return (self.major, self.minor, self.patch, 0 if self.prerelease else 1, pre)
 
     def __lt__(self, other: object) -> bool:

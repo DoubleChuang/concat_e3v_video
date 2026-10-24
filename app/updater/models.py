@@ -1,7 +1,7 @@
-"""更新流程的資料結構（不可變）。
+"""Immutable data structures for the update flow.
 
-刻意與 GitHub API 的 JSON 形狀解耦：轉接器負責把外部格式轉成這些型別，
-應用層與 UI 只看得到這裡的物件。
+Deliberately decoupled from the GitHub JSON shape: adapters translate the outside
+world into these types, and the application/UI layers only see these objects.
 """
 
 from __future__ import annotations
@@ -13,10 +13,10 @@ from app.updater.version import Version
 
 @dataclass(frozen=True)
 class Target:
-    """目前執行平台的識別與對應的 release 檔案。
+    """The running platform and the release artifact that belongs to it.
 
-    ``os`` 使用標準化的 ``darwin`` / ``windows`` / ``linux``；
-    ``arch`` 使用 ``x86_64`` / ``arm64``。
+    ``os`` is normalised to ``darwin`` / ``windows`` / ``linux``; ``arch`` to
+    ``x86_64`` / ``arm64``.
     """
 
     os: str
@@ -39,7 +39,7 @@ class Target:
 
 @dataclass(frozen=True)
 class Asset:
-    """release 內的一個可下載檔案。"""
+    """One downloadable file inside a release."""
 
     name: str
     url: str
@@ -47,7 +47,7 @@ class Asset:
     sha256: str | None = None
 
     def verify(self, received_bytes: int, digest: str) -> None:
-        """由下載器呼叫；違反時丟 :class:`app.updater.errors.DownloadError`。"""
+        """Called by the downloader; raises :class:`app.updater.errors.DownloadError`."""
         from app.updater.errors import DownloadError
 
         if self.size and received_bytes != self.size:
@@ -60,7 +60,7 @@ class Asset:
 
 @dataclass(frozen=True)
 class Release:
-    """一筆 GitHub release。"""
+    """One GitHub release."""
 
     version: Version
     tag: str
@@ -80,7 +80,7 @@ class Release:
 
 @dataclass(frozen=True)
 class UpdatePlan:
-    """「有新版本、而且這個平台抓得到對應檔案」的結果。"""
+    """A newer release exists *and* this platform has an artifact for it."""
 
     current: Version
     release: Release
@@ -89,12 +89,13 @@ class UpdatePlan:
 
 @dataclass(frozen=True)
 class InstallOutcome:
-    """套用更新的結果。
+    """Result of applying an update.
 
-    ``restart_required`` 為真時，呼叫端應結束目前行程，讓更新程式接手。
-    ``relaunch`` 是要在結束前用分離行程啟動的指令（Linux 直接跑新檔；
-    Windows/macOS 由更新腳本負責重開，因此為 ``None``）。
-    ``manual_fallback`` 為真代表檔案已下載但無法自動替換，需使用者手動完成。
+    ``restart_required`` means the caller must exit so the updater can take over.
+    ``relaunch`` is the command to start detached before exiting (Linux runs the
+    new binary directly; Windows/macOS restart from their helper script, so it is
+    ``None`` there). ``manual_fallback`` means the artifact was downloaded but
+    could not be swapped automatically and the user has to finish by hand.
     """
 
     applied: bool

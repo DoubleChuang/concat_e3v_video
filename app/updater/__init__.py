@@ -1,16 +1,16 @@
-"""更新檢查與自動更新的核心（domain 層）。
+"""Update checking and self-update core (domain layer).
 
-這個套件刻意不 import PySide6，也不做任何 I/O，方便單獨測試：
+Deliberately free of PySide6 imports and of any I/O so it can be tested on its own:
 
-- ``version``  SemVer 版本號與比較規則
-- ``models``   Release / Asset / Target / UpdatePlan 等不可變資料結構
-- ``targets``  目前平台對應的 release 檔名
-- ``ports``    對外依賴的介面（Protocol）
-- ``service``  用例（檢查、下載、套用更新）
-- ``github``   GitHub Releases 轉接器
-- ``download`` HTTP 下載轉接器（含 sha256 驗證）
-- ``installers``各平台套用更新的轉接器
-- ``factory``  依目前平台組裝 service
+- ``version``    SemVer parsing and comparison
+- ``models``     immutable Release / Asset / Target / UpdatePlan structures
+- ``targets``    maps (os, arch) to the release asset name
+- ``ports``      interfaces (Protocols) for the outside world
+- ``service``    use cases: check, download, apply
+- ``github``     GitHub Releases adapter
+- ``download``   HTTP download adapter (with sha256 verification)
+- ``installers`` per-platform adapters that swap the running executable
+- ``factory``    assembles the service for the current platform
 """
 
 from app.updater.models import Asset, Release, Target, UpdatePlan

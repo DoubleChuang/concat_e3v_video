@@ -15,7 +15,7 @@ def test_cert_bundle_comes_from_certifi():
 
 def test_context_actually_loads_certificates():
     context = tls.create_ssl_context()
-    # 這正是打包後壞掉的地方：沒有 cafile 時這裡會是 0
+    # this is exactly what breaks in a frozen build: 0 CAs when there is no cafile
     assert len(context.get_ca_certs()) > 10
 
 

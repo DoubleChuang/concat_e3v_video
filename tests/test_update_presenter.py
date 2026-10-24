@@ -88,7 +88,7 @@ class FakeApplyWorker(QObject):
         self._service = service
         self._plan = plan
 
-    def isRunning(self):  # noqa: N802 - 模擬 QThread
+    def isRunning(self):  # noqa: N802 - mimics QThread
         return False
 
     def start(self):

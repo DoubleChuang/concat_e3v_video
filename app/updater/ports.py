@@ -1,6 +1,7 @@
-"""應用層依賴的外部能力介面（hexagonal ports）。
+"""Interfaces for the capabilities the application layer needs (hexagonal ports).
 
-實際實作在 ``github`` / ``download`` / ``installers``；測試用假物件替換。
+Real implementations live in ``github`` / ``download`` / ``installers``; tests
+substitute fakes.
 """
 
 from __future__ import annotations
@@ -11,12 +12,12 @@ from typing import Callable, Protocol
 from app.updater.models import Asset, InstallOutcome, Release, UpdatePlan
 
 ProgressCallback = Callable[[int, int], None]
-"""``(已下載 bytes, 總 bytes)``；總量未知時為 0。"""
+"""``(bytes downloaded, total bytes)``; total is 0 while unknown."""
 
 
 class ReleaseSource(Protocol):
     def latest(self) -> Release:
-        """取得最新正式版 release。"""
+        """Return the newest stable release."""
         ...
 
 
@@ -27,15 +28,15 @@ class Downloader(Protocol):
         destination: Path,
         on_progress: ProgressCallback | None = None,
     ) -> Path:
-        """把 asset 下載到 destination 並回傳實際路徑。"""
+        """Download ``asset`` to ``destination`` and return the real path."""
         ...
 
 
 class Installer(Protocol):
     def can_install(self) -> bool:
-        """目前執行方式是否支援自動替換執行檔。"""
+        """Whether this run mode can replace its own executable."""
         ...
 
     def install(self, artifact: Path, plan: UpdatePlan) -> InstallOutcome:
-        """把下載好的檔案套用成執行中的版本。"""
+        """Apply the downloaded artifact as the running version."""
         ...

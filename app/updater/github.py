@@ -1,7 +1,8 @@
-"""GitHub Releases 轉接器。
+"""GitHub Releases adapter.
 
-用公開 API（不需要 token）讀取最新正式版；只有讀取，不會寫入任何東西。
-JSON → domain 的轉換寫成純函式 :func:`parse_release`，方便離線測試。
+Reads the newest stable release through the public API (no token needed); read
+only, never writes anything. The JSON -> domain conversion lives in the pure
+function :func:`parse_release` so it can be tested offline.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ Opener = Callable[..., Any]
 
 
 def _sha256_from_digest(digest: object) -> str | None:
-    """GitHub 的 asset digest 長成 ``sha256:abc...``。"""
+    """GitHub asset digests look like ``sha256:abc...``."""
     if not isinstance(digest, str):
         return None
     algorithm, _, value = digest.partition(":")

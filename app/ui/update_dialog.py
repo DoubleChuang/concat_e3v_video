@@ -1,6 +1,7 @@
-"""更新相關的對話框。
+"""Dialogs for the update flow.
 
-只負責顯示與取得使用者決定，不碰網路；流程由 :mod:`app.ui.update_presenter` 控制。
+They only display information and collect the user's decision; no network. The
+flow itself is driven by :mod:`app.ui.update_presenter`.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from app.updater.service import CheckResult
 
 
 class UpdateAvailableDialog(QDialog):
-    """顯示新版本資訊；``choice`` 為 ``update`` / ``later`` / ``page``。"""
+    """Show the new version; ``choice`` is ``update`` / ``later`` / ``page``."""
 
     def __init__(
         self,
@@ -29,7 +30,7 @@ class UpdateAvailableDialog(QDialog):
     ) -> None:
         super().__init__(parent)
         if result.release is None:
-            raise ValueError("UpdateAvailableDialog 需要帶 release 的 CheckResult")
+            raise ValueError("UpdateAvailableDialog needs a CheckResult with a release")
         self.choice = "later"
         self.setWindowTitle("發現新版本")
         self.resize(520, 380)
@@ -73,7 +74,7 @@ class UpdateAvailableDialog(QDialog):
 
 
 class DownloadProgressDialog(QDialog):
-    """下載中不可關閉，避免留下半個檔案。"""
+    """Cannot be closed while downloading, so no half-written file is left behind."""
 
     def __init__(self, version: str, parent=None) -> None:
         super().__init__(parent)
@@ -88,7 +89,7 @@ class DownloadProgressDialog(QDialog):
         layout.addWidget(self.label)
 
         self.bar = QProgressBar()
-        self.bar.setRange(0, 0)  # 總量未知時先跑 indeterminate
+        self.bar.setRange(0, 0)  # indeterminate until the total size is known
         layout.addWidget(self.bar)
 
     def set_progress(self, received: int, total: int) -> None:
@@ -101,5 +102,5 @@ class DownloadProgressDialog(QDialog):
         else:
             self.label.setText(f"正在下載… {received / 1048576:.1f} MB")
 
-    def closeEvent(self, event):  # noqa: N802 - Qt 命名
+    def closeEvent(self, event):  # noqa: N802 - Qt naming
         event.ignore()

@@ -19,7 +19,7 @@ def get_upload_history_file(s: AppSettings) -> str:
 
 
 def as_bool(value, default: bool = False) -> bool:
-    """QSettings 會把 bool 存成字串（IniFormat 尤其明顯），統一在這裡轉。"""
+    """QSettings stores bools as strings (IniFormat especially); normalise here."""
     if value is None:
         return default
     if isinstance(value, bool):

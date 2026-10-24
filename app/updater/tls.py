@@ -1,16 +1,19 @@
-"""TLS 憑證設定。
+"""TLS certificate setup.
 
-PyInstaller 打包後的執行檔沒有「原開發機」的 OpenSSL 憑證路徑：``ssl`` 是在
-build 時把 OPENSSLDIR 燒進去的，到了使用者機器上那個資料夾不存在，於是
-``ssl.create_default_context()`` 載到 0 張憑證，任何 HTTPS 連線都會得到::
+A PyInstaller binary has no OpenSSL trust path from the machine that built it:
+``ssl`` bakes OPENSSLDIR in at build time, that directory does not exist on the
+user's machine, so ``ssl.create_default_context()`` loads zero certificates and
+every HTTPS call fails with::
 
     <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed:
      unable to get local issuer certificate (_ssl.c:1006)>
 
-所以我們自己帶一份 CA 憑證包（``certifi``），並且：
-- 在程式啟動時設定 ``SSL_CERT_FILE``，讓整個行程（urllib / httplib2 / requests）
-  都用同一份憑證；
-- 更新器建立 SSLContext 時明確指定 cafile，不依賴環境變數是否生效。
+So we ship our own CA bundle (``certifi``) and:
+
+- set ``SSL_CERT_FILE`` at startup so the whole process (urllib / httplib2 /
+  requests) uses the same bundle;
+- pass ``cafile`` explicitly when the updater builds an SSLContext, instead of
+  relying on the environment variable having been picked up.
 """
 
 from __future__ import annotations
@@ -26,10 +29,10 @@ CERT_ERROR_HINT = (
 
 
 def cert_bundle_path() -> str | None:
-    """回傳 certifi 的 cacert.pem 路徑；沒有 certifi 或檔案不存在就回 None。"""
+    """Return certifi's cacert.pem path, or None when unavailable."""
     try:
         import certifi
-    except ImportError:  # pragma: no cover - 正常打包一定會帶
+    except ImportError:  # pragma: no cover - a real build always bundles it
         return None
     path = Path(certifi.where())
     return str(path) if path.is_file() else None
@@ -43,9 +46,9 @@ def create_ssl_context() -> ssl.SSLContext:
 
 
 def configure_ssl_certificates() -> str | None:
-    """把 certifi 的憑證包設成行程預設，回傳實際路徑。
+    """Point the process at certifi's bundle and return its path.
 
-    用 ``setdefault``：使用者若自己設了 ``SSL_CERT_FILE`` 就尊重他。
+    Uses ``setdefault``: an ``SSL_CERT_FILE`` the user set themselves wins.
     """
     bundle = cert_bundle_path()
     if bundle is None:
@@ -55,7 +58,7 @@ def configure_ssl_certificates() -> str | None:
 
 
 def is_certificate_error(exc: BaseException) -> bool:
-    """urllib 會把 SSL 錯誤包在 URLError.reason 裡，兩種都要認。"""
+    """urllib wraps SSL errors in ``URLError.reason``; accept both shapes."""
     if isinstance(exc, ssl.SSLCertVerificationError):
         return True
     reason = getattr(exc, "reason", None)

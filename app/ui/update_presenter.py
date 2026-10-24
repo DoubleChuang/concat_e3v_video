@@ -1,7 +1,8 @@
-"""更新流程的簡報層：把 service 的結果變成對話框與使用者決定。
+"""Presentation layer for the update flow: service results -> dialogs and decisions.
 
-所有 Qt 物件都留在主執行緒；實際的網路/檔案工作跑在
-:mod:`app.ui.update_worker` 的 QThread 裡，訊號自動排回主執行緒。
+Every Qt object stays on the main thread; the real network/file work runs in the
+QThreads from :mod:`app.ui.update_worker`, whose signals queue back to the main
+thread automatically.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from app.ui.update_worker import UpdateApplyWorker, UpdateCheckWorker
 
 
 def build_default_presenter(parent=None) -> UpdatePresenter:
-    """沒有注入 service 時（例如直接開視窗的測試）用的預設組裝。"""
+    """Default wiring for callers that do not inject a service (e.g. window tests)."""
     from app.updater.factory import build_update_service
 
     return UpdatePresenter(build_update_service(), parent)
@@ -45,7 +46,7 @@ class UpdatePresenter(QObject):
     def busy(self) -> bool:
         return self._check_worker is not None or self._apply_worker is not None
 
-    # ------------------------------------------------------------------ 檢查
+    # ------------------------------------------------------------------- check
     def check(self, parent=None, manual: bool = True) -> None:
         if self.busy:
             return
@@ -85,7 +86,7 @@ class UpdatePresenter(QObject):
             )
             self._open_release_page(result)
             return
-        if result.plan is None:  # pragma: no cover - 防禦性
+        if result.plan is None:  # pragma: no cover - defensive
             return
         dialog = UpdateAvailableDialog(
             result, self._service.can_self_update(), self._parent
@@ -96,9 +97,10 @@ class UpdatePresenter(QObject):
         elif dialog.choice == "page":
             self._open_release_page(result)
 
-    # ------------------------------------------------------------------ 下載
+    # ---------------------------------------------------------------- download
     def _start_update(self, plan: UpdatePlan) -> None:
-        # 這裡不能用 self.busy：檢查 worker 還在收尾，會誤擋掉剛按下的「下載並更新」
+        # Do not use self.busy here: the check worker is still winding down and
+        # would swallow the "download and update" click that just happened.
         if self._apply_worker is not None:
             return
         dialog = DownloadProgressDialog(str(plan.release.version), self._parent)
@@ -142,7 +144,8 @@ class UpdatePresenter(QObject):
             "更新完成",
             outcome.message or "新版本已下載，重新啟動後生效。",
         )
-        # 等 worker 真的結束再離開，避免 Qt 在執行緒還活著時拆掉物件
+        # Let the worker really finish before quitting, otherwise Qt may destroy
+        # objects while the thread is still running.
         worker = self._apply_worker
         if worker is not None and worker.isRunning():
             worker.wait(3000)
@@ -164,7 +167,7 @@ class UpdatePresenter(QObject):
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(directory)))
 
     def shutdown(self, timeout_ms: int = 3000) -> None:
-        """離開前等背景 worker 收尾，避免 QThread 在解構時還在跑。"""
+        """Wait for background workers before exit so no QThread is destroyed running."""
         for worker in (self._check_worker, self._apply_worker):
             if worker is not None and worker.isRunning():
                 worker.wait(timeout_ms)

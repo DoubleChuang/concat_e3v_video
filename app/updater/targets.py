@@ -1,7 +1,8 @@
-"""平台正規化與 release 檔名對照表。
+"""Platform normalisation and the release filename table.
 
-release 上的檔名是固定的（見 .github/workflows/build.yml），
-換檔名就要同步改這裡，並補測試。
+The filenames on the release are a fixed contract (see
+.github/workflows/build.yml); renaming an artifact means updating this table and
+its tests together.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ import sys
 
 from app.updater.models import Target
 
-# (os, arch) -> release 上的 asset 名稱
+# (os, arch) -> asset name on the release
 ASSET_NAMES: dict[tuple[str, str], str] = {
     ("darwin", "arm64"): "concat-e3v-macos-arm64.app.zip",
     ("darwin", "x86_64"): "concat-e3v-macos-x86_64.app.zip",

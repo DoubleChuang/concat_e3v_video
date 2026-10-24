@@ -1,7 +1,7 @@
-"""HTTP 下載轉接器：串流寫檔、進度回報、sha256 驗證。
+"""HTTP download adapter: streaming writes, progress reporting, sha256 verify.
 
-驗證很重要：下載回來的東西會被直接執行，所以大小或雜湊不符一律視為失敗，
-不留下半個檔案。
+Verification matters: the artifact is executed after download, so a size or hash
+mismatch is always a failure and never leaves half a file behind.
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ class HttpDownloader:
                 part.unlink(missing_ok=True)
                 if attempt == self._attempts:
                     raise DownloadError(str(exc)) from exc
-        if not part.exists():  # pragma: no cover - 迴圈一定會 break 或 raise
+        if not part.exists():  # pragma: no cover - the loop either breaks or raises
             raise DownloadError(str(last_error or "下載失敗"))
 
         part.replace(destination)
@@ -94,7 +94,7 @@ class HttpDownloader:
         except urllib.error.HTTPError as exc:
             raise DownloadError(f"下載失敗（HTTP {exc.code}）") from exc
         except (urllib.error.URLError, ssl.SSLError, TimeoutError, OSError) as exc:
-            # 憑證問題重試幾次都一樣，直接給可行動的訊息
+            # A certificate problem will not fix itself on retry; fail with advice.
             if is_certificate_error(exc):
                 raise DownloadError(CERT_ERROR_HINT) from exc
             raise _RetryableDownloadError(f"下載中斷：{exc}") from exc
@@ -105,4 +105,4 @@ class HttpDownloader:
 
 
 class _RetryableDownloadError(Exception):
-    """網路層錯誤，可重試。"""
+    """Network-level failure that is worth retrying."""

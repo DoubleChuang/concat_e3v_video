@@ -1,7 +1,8 @@
-"""「說明」選單：檢查更新、啟動時自動檢查、關於。
+"""The "Help" menu: check for updates, auto-check on startup, about.
 
-HomeWindow 是 QWidget、MainWindow 是 QMainWindow，這裡統一處理：
-QMainWindow 用內建 menuBar，其餘用 layout 的 setMenuBar。
+HomeWindow is a QWidget and MainWindow is a QMainWindow, so both cases are handled
+here: QMainWindow uses its built-in menuBar, everything else uses the layout's
+setMenuBar.
 """
 
 from __future__ import annotations

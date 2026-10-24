@@ -1,4 +1,4 @@
-"""依目前平台組裝更新 service（composition root for 更新功能）。"""
+"""Composition root for the update feature: wire the service for this platform."""
 
 from __future__ import annotations
 
