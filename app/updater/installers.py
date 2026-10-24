@@ -1,14 +1,17 @@
-"""各平台如何把「下載好的新版本」換成「正在跑的版本」。
+"""How each platform swaps "the downloaded new version" for "the running one".
 
-三個平台的限制不同：
+The three platforms differ:
 
-* Linux  ：單檔執行檔可以直接原子替換（舊 inode 還被執行中的行程持有），
-           換完由呼叫端重開新檔。
-* Windows：執行中的 exe 被鎖住，只能先寫一個 .bat，等行程結束後搬檔並重開。
-* macOS  ：本體是 .app bundle，整個 bundle 換掉才不會破壞 code signature；
-           同樣靠 shell script 等行程結束後替換並重開。
+* Linux  : a single-file executable can be replaced atomically (the running
+           process still holds the old inode); the caller relaunches the new file.
+* Windows: the running exe is locked, so write a .bat that waits for the process
+           to exit, moves the new file in and starts it again.
+* macOS  : the app is a .app bundle; replacing the whole bundle is the only way to
+           keep the code signature valid. A shell script waits for the process,
+           swaps the bundle and reopens it.
 
-腳本產生的部分是純函式（``build_*_script``），方便測試路徑跳脫與內容。
+The script bodies are produced by pure functions (``build_*_script``) so escaping
+and content can be tested without running anything.
 """
 
 from __future__ import annotations
@@ -29,7 +32,7 @@ Spawn = Callable[[Sequence[str]], None]
 
 
 def is_frozen() -> bool:
-    """PyInstaller 打包後的執行檔才會是 frozen。"""
+    """Only a PyInstaller build sets ``sys.frozen``."""
     return bool(getattr(sys, "frozen", False))
 
 
@@ -48,7 +51,7 @@ def _spawn_detached(command: Sequence[str]) -> None:
 
 
 class UnsupportedInstaller:
-    """開發模式或沒有對應產物的平台。"""
+    """Development mode, or a platform without an artifact."""
 
     def __init__(self, reason: str) -> None:
         self._reason = reason
@@ -61,7 +64,7 @@ class UnsupportedInstaller:
 
 
 class LinuxInstaller:
-    """單檔執行檔：備份 → 原子替換。"""
+    """Single-file executable: back up, then replace atomically."""
 
     def __init__(self, executable: Path | None = None) -> None:
         self._executable = Path(executable or sys.executable)
@@ -109,7 +112,7 @@ def build_mac_update_script(
     new_bundle: Path,
     staging: Path,
 ) -> str:
-    """等舊行程結束 → 換掉整個 .app → 去除 quarantine → 重開。"""
+    """Wait for the old process, swap the whole .app, clear quarantine, reopen."""
     bundle_q = shlex.quote(str(bundle))
     new_q = shlex.quote(str(new_bundle))
     staging_q = shlex.quote(str(staging))
@@ -126,11 +129,11 @@ done
 
 rm -rf "$BACKUP"
 if ! mv "$BUNDLE" "$BACKUP"; then
-  echo "無法移動舊版 $BUNDLE" >&2
+  echo "cannot move old bundle $BUNDLE" >&2
   exit 1
 fi
 if ! mv "$NEW" "$BUNDLE"; then
-  echo "無法放入新版本，還原舊版" >&2
+  echo "cannot install new bundle, restoring the old one" >&2
   mv "$BACKUP" "$BUNDLE"
   exit 1
 fi
@@ -142,15 +145,15 @@ rm -rf {staging_q}
 
 
 def _image_name(target: Path) -> str:
-    """取執行檔檔名；測試會在 POSIX 上傳入 Windows 路徑，所以兩種分隔符都要處理。"""
+    """Executable file name; POSIX tests pass Windows paths, so handle both separators."""
     return str(target).replace("\\", "/").rsplit("/", 1)[-1]
 
 
 def build_windows_update_script(pid: int, target: Path, new_file: Path) -> str:
-    """等舊行程結束 → 覆蓋 exe → 重開 → 清掉暫存資料夾。
+    """Wait for the old process, overwrite the exe, restart, clean up staging.
 
-    等行程的判斷同時比對 PID 與檔名：只比 PID 會誤判（例如 123 對上 5123），
-    太早搬檔會因為 exe 還被鎖住而失敗。
+    The wait compares the PID *and* the image name: PID alone false-matches
+    (123 vs 5123) and moving too early fails because the exe is still locked.
     """
     image_name = _image_name(target)
     return f"""@echo off
@@ -177,7 +180,7 @@ rmdir /s /q "%~dp0" >NUL 2>&1
 
 
 class MacInstaller:
-    """.app bundle 更新：解壓到暫存 → 交给 shell script 換檔。"""
+    """.app bundle update: extract to staging, let a shell script do the swap."""
 
     def __init__(self, executable: Path | None = None, spawn: Spawn | None = None) -> None:
         self._executable = Path(executable or sys.executable)
@@ -240,7 +243,7 @@ class MacInstaller:
 
 
 class WindowsInstaller:
-    """執行中的 exe 不能覆蓋，交給 .bat 在行程結束後接手。"""
+    """A running exe cannot be overwritten; a .bat takes over after exit."""
 
     def __init__(self, executable: Path | None = None, spawn: Spawn | None = None) -> None:
         self._executable = Path(executable or sys.executable)
@@ -281,7 +284,7 @@ class WindowsInstaller:
 
 
 def bundle_path_for(executable: Path) -> Path | None:
-    """從 ``.../concat-e3v.app/Contents/MacOS/concat-e3v`` 找出 ``.app``。"""
+    """Find the ``.app`` for ``.../concat-e3v.app/Contents/MacOS/concat-e3v``."""
     for parent in Path(executable).parents:
         if parent.suffix == ".app":
             return parent

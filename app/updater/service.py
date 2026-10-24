@@ -1,7 +1,7 @@
-"""更新流程的用例層：檢查 → 下載 → 套用。
+"""Use cases for the update flow: check, download, apply.
 
-這裡只做決策與順序控制，所有 I/O 都經由 ``ports`` 注入，
-因此可以在沒有網路、沒有 GUI 的情況下單元測試。
+This layer only makes decisions and sequences calls; every I/O goes through the
+ports, so it can be unit-tested without network or GUI.
 """
 
 from __future__ import annotations

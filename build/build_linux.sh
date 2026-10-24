@@ -6,10 +6,11 @@ BIN_DIR="$ROOT/build/bin/$PLAT"
 FFMPEG="$BIN_DIR/ffmpeg"
 mkdir -p "$BIN_DIR"
 
-# ffmpeg-static 的預編譯檔案（GitHub Releases 托管，內容固定、可驗證）。
-# 之前用 johnvansickle.com，對方回錯誤頁時 tar 只會噴
-# "xz: (stdin): File format not recognized"，看不出是下載失敗。
-# 換版本時記得同步更新下面的 sha256。
+# Prebuilt ffmpeg-static binaries (hosted on GitHub Releases: immutable and
+# verifiable). We used johnvansickle.com before; when it answered with an error
+# page, tar only said "xz: (stdin): File format not recognized", which looked like
+# an archive problem instead of a failed download.
+# Bump the tag and the sha256 values below together.
 FFMPEG_STATIC_TAG="b6.1.1"
 
 ffmpeg_asset() {
@@ -21,7 +22,7 @@ ffmpeg_asset() {
       echo "ffmpeg-linux-arm64.gz 754a678672298bc68156adff58aa7385a592c2b30b1d0ae8750c45c915c4bac0"
       ;;
     *)
-      echo "ERROR: 不支援的 Linux 架構: $(uname -m)" >&2
+      echo "ERROR: unsupported Linux arch: $(uname -m)" >&2
       exit 1
       ;;
   esac
@@ -33,8 +34,8 @@ download_ffmpeg() {
   url="https://github.com/eugeneware/ffmpeg-static/releases/download/${FFMPEG_STATIC_TAG}/${asset}"
   tmpdir="$(mktemp -d)"
   gz="$tmpdir/$asset"
-  echo "下載 ffmpeg (linux, $(uname -m))... $url"
-  # -f 讓 4xx/5xx 直接失敗，避免把錯誤頁面當成壓縮檔解開
+  echo "Downloading ffmpeg (linux, $(uname -m))... $url"
+  # -f makes 4xx/5xx fail immediately instead of saving an error page as an archive
   curl -fL --retry 5 --retry-delay 3 --retry-all-errors --connect-timeout 30 \
     -o "$gz" "$url"
   echo "${sha}  ${gz}" | sha256sum -c -
@@ -47,13 +48,13 @@ if [ ! -x "$FFMPEG" ]; then
   download_ffmpeg
 fi
 
-# 這個 binary 等等要打包進 app；先確認它真的能在目前機器上執行
+# This binary is about to be bundled into the app; prove it runs on this machine first.
 if ! "$FFMPEG" -version >/dev/null 2>&1; then
-  echo "ERROR: $FFMPEG 無法執行（架構不符或檔案損毀）" >&2
+  echo "ERROR: $FFMPEG is not executable (wrong arch or corrupted file)" >&2
   exit 1
 fi
 
 PYTHON="${PYTHON:-python3}"
 cd "$ROOT"
 "$PYTHON" -m PyInstaller --noconfirm build/app.spec
-echo "產物: $ROOT/dist/concat-e3v"
+echo "Artifact: $ROOT/dist/concat-e3v"

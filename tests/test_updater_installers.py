@@ -138,7 +138,7 @@ def test_mac_script_waits_then_swaps_bundle_and_reopens(tmp_path):
     assert "mv " in script
     assert 'open "$BUNDLE"' in script
     assert "xattr -dr com.apple.quarantine" in script
-    # 有空白的路徑必須被 quote 起來
+    # a path containing spaces must stay quoted
     assert "BUNDLE='/Applications/My App.app'" in script
 
 

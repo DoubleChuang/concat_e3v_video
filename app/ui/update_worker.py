@@ -1,6 +1,7 @@
-"""更新流程的執行緒包裝（與 app/worker.py 相同風格：QThread + signals）。
+"""Thread wrappers for the update flow (same style as app/worker.py: QThread + signals).
 
-網路 I/O 一定要離開 UI 執行緒，否則檢查更新時整個視窗會凍住。
+Network I/O must stay off the UI thread, otherwise the window freezes while
+checking for updates.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ class UpdateCheckWorker(QThread):
             self.succeeded.emit(self._service.check())
         except UpdateError as exc:
             self.failed.emit(str(exc))
-        except Exception as exc:  # pragma: no cover - 防禦性
+        except Exception as exc:  # pragma: no cover - defensive
             self.failed.emit(f"檢查更新時發生未預期的錯誤：{exc}")
 
 
@@ -46,5 +47,5 @@ class UpdateApplyWorker(QThread):
             self.succeeded.emit(outcome)
         except UpdateError as exc:
             self.failed.emit(str(exc))
-        except Exception as exc:  # pragma: no cover - 防禦性
+        except Exception as exc:  # pragma: no cover - defensive
             self.failed.emit(f"更新時發生未預期的錯誤：{exc}")

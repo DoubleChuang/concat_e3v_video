@@ -38,7 +38,7 @@ jobs:
         run: |
           version="$(python -c 'import app.version as v; print(v.__version__)')"
           if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
-            echo "::error::tag ${GITHUB_REF_NAME} 與 app/version.py 的 v${version} 不一致"
+            echo "::error::tag ${GITHUB_REF_NAME} does not match v${version} in app/version.py"
             exit 1
           fi
 
@@ -47,8 +47,8 @@ jobs:
         env:
           PYTHON: python
 
-      # 這個容器沒有任何系統 CA，正是使用者端會遇到的條件。
-      # 若 certifi 沒被包進去，這裡就會 CERTIFICATE_VERIFY_FAILED 而失敗。
+      # This container has no system CA store, exactly the condition a user hits.
+      # Without certifi bundled, this step fails with CERTIFICATE_VERIFY_FAILED.
       - name: Smoke test updater TLS inside the bundle
         run: ./dist/concat-e3v --check-updates
 
